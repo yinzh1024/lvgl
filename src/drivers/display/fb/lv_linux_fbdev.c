@@ -92,6 +92,9 @@ static uint32_t tick_get_cb(void);
     #define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 #endif
 
+#define SCREEN_WIDTH 1920
+#define SCREEN_HEIGHT 1080
+
 /**********************
  *   GLOBAL FUNCTIONS
  **********************/
@@ -104,7 +107,7 @@ lv_display_t * lv_linux_fbdev_create(void)
     LV_ASSERT_MALLOC(dsc);
     if(dsc == NULL) return NULL;
 
-    lv_display_t * disp = lv_display_create(800, 480);
+    lv_display_t * disp = lv_display_create(SCREEN_WIDTH, SCREEN_HEIGHT);
     if(disp == NULL) {
         lv_free(dsc);
         return NULL;
@@ -165,6 +168,58 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
     dsc->finfo.line_length = line_length;
     dsc->finfo.smem_len = dsc->finfo.line_length * dsc->vinfo.yres;
 #else /* LV_LINUX_FBDEV_BSD */
+
+    dsc->vinfo.xres = disp->hor_res;
+    dsc->vinfo.yres = disp->ver_res;
+    dsc->vinfo.xres_virtual = disp->hor_res;
+    dsc->vinfo.yres_virtual = disp->ver_res + dsc->vinfo.yoffset;
+#if 1 // ARGB8888
+    struct fb_bitfield  s_a32 = {24, 8, 0};
+    struct fb_bitfield  s_r32 = {16, 8, 0};
+    struct fb_bitfield  s_g32 = {8, 8, 0};
+    struct fb_bitfield  s_b32 = {0, 8, 0};
+    dsc->vinfo.transp = s_a32;
+    dsc->vinfo.red = s_r32;
+    dsc->vinfo.green = s_g32;
+    dsc->vinfo.blue = s_b32;
+    dsc->vinfo.bits_per_pixel = 32;
+#elif 0 // ARGB1555
+    struct fb_bitfield  s_a16 = {15, 1, 0};
+    struct fb_bitfield  s_r16 = {10, 5, 0};
+    struct fb_bitfield  s_g16 = {5, 5, 0};
+    struct fb_bitfield  s_b16 = {0, 5, 0};
+    dsc->vinfo.transp = s_a16;
+    dsc->vinfo.red = s_r16;
+    dsc->vinfo.green = s_g16;
+    dsc->vinfo.blue = s_b16;
+    dsc->vinfo.bits_per_pixel = 16;
+#elif 0 // ARGB4444
+    struct fb_bitfield  s_a16 = {12, 4, 0};
+    struct fb_bitfield  s_r16 = {8, 4, 0};
+    struct fb_bitfield  s_g16 = {4, 4, 0};
+    struct fb_bitfield  s_b16 = {0, 4, 0};
+    dsc->vinfo.transp = s_a16;
+    dsc->vinfo.red = s_r16;
+    dsc->vinfo.green = s_g16;
+    dsc->vinfo.blue = s_b16;
+    dsc->vinfo.bits_per_pixel = 16;
+#else
+    struct fb_bitfield  s_a16 = {0, 0, 0};
+    struct fb_bitfield  s_r16 = {11, 5, 0};
+    struct fb_bitfield  s_g16 = {5, 6, 0};
+    struct fb_bitfield  s_b16 = {0, 5, 0};
+    dsc->vinfo.transp = s_a16;
+    dsc->vinfo.red = s_r16;
+    dsc->vinfo.green = s_g16;
+    dsc->vinfo.blue = s_b16;
+    dsc->vinfo.bits_per_pixel = 16;
+#endif
+    dsc->vinfo.activate = FB_ACTIVATE_NOW;
+
+    if(ioctl(dsc->fbfd, FBIOPUT_VSCREENINFO, &dsc->vinfo) == -1) {
+        perror("Error write variable information");
+        return;
+    }
 
     /* Get fixed screen information*/
     if(ioctl(dsc->fbfd, FBIOGET_FSCREENINFO, &dsc->finfo) == -1) {
@@ -287,7 +342,7 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * colo
     if(rotation != LV_DISPLAY_ROTATION_0 && LV_LINUX_FBDEV_RENDER_MODE == LV_DISPLAY_RENDER_MODE_PARTIAL) {
         /* (Re)allocate temporary buffer if needed */
         size_t buf_size = w * h * px_size;
-        if(!dsc->rotated_buf || dsc->rotated_buf_size != buf_size) {
+        if(!dsc->rotated_buf || dsc->rotated_buf_size < buf_size) {
             dsc->rotated_buf = realloc(dsc->rotated_buf, buf_size);
             dsc->rotated_buf_size = buf_size;
         }
@@ -345,6 +400,7 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * colo
         }
     }
     else {
+        // TODO: use dma 'MI_SYS_BufBlitPa'
         w = lv_area_get_width(area);
         for(y = area->y1; y <= area->y2; y++) {
             write_to_fb(dsc, fb_pos, color_p, w * px_size);
