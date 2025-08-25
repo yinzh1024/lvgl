@@ -1,37 +1,82 @@
-#include "dev_sdk/chwinfo.h"
-#include "eventservice/util/time_util.h"
-#include "lvgl.h"
-#include "src/extra/libs/freetype/lv_freetype.h"
-#include "src/hwdisplay/hisi_fbdev.h"
-#include <arpa/inet.h>
-#include <net/if.h>
-#include <netinet/in.h>
-#include <pthread.h>
-#include <sstream>
-#include <stdio.h>
-#include <string>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <sys/time.h>
-#include <time.h>
+#include "lvgl/lvgl.h"
+#include "lvgl/demos/lv_demos.h"
+#include "src/display/lv_display_private.h"
+
 #include <unistd.h>
+#include <pthread.h>
+#include <time.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-#ifdef ENABLE_FB_DOUBLE_BUFFER
-#define DISP_BUF_SIZE (16200 * 1024)
-#else
-#define DISP_BUF_SIZE (128 * 1024)
-#endif
+#define TEXT_FONT_SIZE 200
 
-#if LV_BUILD_EXAMPLES && LV_USE_SWITCH
+static const char *getenv_default(const char *name, const char *dflt)
+{
+    return getenv(name) ? : dflt;
+}
 
-static char time_str[16];
 static void anim_x_cb(void * var, int32_t v)
 {
-  static int32_t p = 0;
-  // p += 4;
-  p = v;
-  lv_label_set_text((lv_obj_t*)var, vzes::XTimeUtil::TimeLocalToString().c_str());
-  lv_obj_set_x((lv_obj_t*)var, p);
+    char text[128];
+    snprintf(text, sizeof(text) - 1, "你好，臻识：%d", rand());
+    lv_label_set_text((lv_obj_t *)var, text);
+    lv_obj_set_x((lv_obj_t *)var, v);
+}
+
+static void anim_y_cb(void * var, int32_t v)
+{
+    static int32_t p = 0;
+    // p += 4;
+    p = v;
+    char text[128];
+    snprintf(text, sizeof(text) - 1, "你好，臻识：%d", rand());
+    lv_label_set_text((lv_obj_t *)var, text);
+    lv_obj_set_y((lv_obj_t*)var, p);
+}
+
+static void anim_rot_cb(void * var, int32_t v)
+{
+    lv_obj_set_style_transform_rotation((lv_obj_t*)var, v * 10, LV_PART_MAIN);
+    // lv_obj_set_x((lv_obj_t *)var, -v);
+}
+
+void test_rotate_label(lv_obj_t *screen, lv_style_t *comm_style, int angle_val)
+{
+    lv_obj_t * label = lv_label_create(screen);
+    lv_label_set_text(label, "2022年05月24日!");
+    lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_text_color(label, lv_color_hex(0xFF0000), LV_PART_MAIN);
+    lv_obj_set_style_transform_rotation(label, angle_val * 10, LV_PART_MAIN);
+    lv_obj_set_style_transform_pivot_y(label, 0, LV_PART_MAIN);
+    lv_obj_set_style_transform_pivot_x(label, 0, LV_PART_MAIN);
+}
+
+void create_rotate_label(lv_obj_t *screen, lv_style_t *comm_style)
+{
+    lv_obj_t * label = lv_label_create(screen);
+    lv_label_set_text(label, "2022年05月24日!");
+    lv_obj_align(label, LV_ALIGN_BOTTOM_LEFT, 0, TEXT_FONT_SIZE);
+    lv_obj_set_style_text_color(label, lv_color_hex(0xFF0000), LV_PART_MAIN);
+    lv_obj_set_style_transform_rotation(label, -90 * 10, LV_PART_MAIN);
+    lv_obj_set_style_transform_pivot_x(label, 0, LV_PART_MAIN);
+    lv_obj_set_style_transform_pivot_y(label, 0, LV_PART_MAIN);
+
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, label);
+#if 0
+    lv_anim_set_values(&a, 0, -900);
+    lv_anim_set_duration(&a, 900 * 1000);
+    lv_anim_set_exec_cb(&a, anim_rot_cb);
+    lv_anim_set_path_cb(&a, lv_anim_path_linear);
+#elif 1
+    lv_anim_set_values(&a, -1080, 1080);
+    lv_anim_set_duration(&a, 10000);
+    lv_anim_set_exec_cb(&a, anim_y_cb);
+    lv_anim_set_path_cb(&a, lv_anim_path_linear);
+#endif
+    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_start(&a);
 }
 
 /**
@@ -39,125 +84,98 @@ static void anim_x_cb(void * var, int32_t v)
  */
 void lv_example_anim_1(void)
 {
-#if 1
-    static lv_style_t ft_style;
-    static lv_ft_info_t ft_info;
-    ft_info.name = "/tmp/app/exec/font/DroidSans.ttf";
-    ft_info.weight = 128;
-    ft_info.style = FT_FONT_STYLE_NORMAL;
-    ft_info.mem = NULL;
+    lv_obj_t *img = lv_image_create(lv_screen_active());
+    lv_image_set_src(img, "A:/nfsroot/test.bmp");
+    // lv_image_set_src(img, "A:/customer/test_dither.bmp");
+    // lv_image_set_src(img, "A:/nfsroot/test_dither.bmp");
+    // lv_image_set_src(img, "A:/nfsroot/white.bmp");
+    // lv_image_set_src(img, "A:/nfsroot/red.bmp");
+    // lv_image_set_src(img, "A:/nfsroot/green.bmp");
+    // lv_image_set_src(img, "A:/nfsroot/blue.bmp");
+    // lv_obj_center(img);
 
-    lv_freetype_init(128, 1, 0);
-    if(!lv_ft_font_init(&ft_info)) {
-      printf("get font_info failed, lv_ft_font_init error!\n");
-      return;
+    lv_font_t * font = lv_tiny_ttf_create_file("A:/tmp/app/exec/font/DroidSans.ttf", TEXT_FONT_SIZE);
+    static lv_style_t ft_style;
+    lv_style_init(&ft_style);
+    lv_style_set_text_font(&ft_style, font);
+    lv_style_set_text_color(&ft_style, lv_color_make(0xFF, 0, 0));
+    lv_obj_t * screen = lv_screen_active();
+    lv_obj_add_style(screen, &ft_style, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    // for (int i = 0; i < 10; i++) {
+    //     test_rotate_label(screen, &ft_style, i * 10);
+    // }
+    // create_rotate_label(screen,  &ft_style);
+
+    lv_obj_t *label_list[1];
+    for (int i = 0; i < sizeof(label_list) / sizeof(label_list[0]); i++) {
+        label_list[i] = lv_label_create(lv_scr_act());
+        lv_obj_add_style(label_list[i], &ft_style, LV_STATE_DEFAULT);
+        lv_label_set_text(label_list[i], "2022年05月24日!");
+        lv_obj_set_size(label_list[i], 3000, 600);
+        lv_obj_set_pos(label_list[i], 0, i * 256 + 600);
+
+        lv_anim_t a;
+        lv_anim_init(&a);
+        lv_anim_set_var(&a, label_list[i]);
+        lv_anim_set_values(&a, -1080, 1080);
+        lv_anim_set_duration(&a, 10 * 1000);
+        lv_anim_set_exec_cb(&a, anim_x_cb);
+        lv_anim_set_path_cb(&a, lv_anim_path_linear);
+        lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+        lv_anim_start(&a);
+    }
+}
+
+#if LV_USE_LINUX_FBDEV
+static void lv_linux_disp_init(void)
+{
+    const char *device = getenv_default("LV_LINUX_FBDEV_DEVICE", "/dev/fb0");
+    lv_display_t * disp = lv_linux_fbdev_create();
+    lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_90);
+
+    lv_linux_fbdev_set_file(disp, device);
+}
+#elif LV_USE_LINUX_DRM
+static void lv_linux_disp_init(void)
+{
+    const char *device = getenv_default("LV_LINUX_DRM_CARD", "/dev/dri/card0");
+    lv_display_t * disp = lv_linux_drm_create();
+
+    lv_linux_drm_set_file(disp, device, -1);
+}
+#elif LV_USE_SDL
+static void lv_linux_disp_init(void)
+{
+    const int width = atoi(getenv("LV_SDL_VIDEO_WIDTH") ? : "800");
+    const int height = atoi(getenv("LV_SDL_VIDEO_HEIGHT") ? : "480");
+
+    lv_sdl_window_create(width, height);
+}
+#else
+#error Unsupported configuration
+#endif
+
+int main(void)
+{
+    lv_init();
+
+    /*Linux display device init*/
+    lv_linux_disp_init();
+
+    // lv_obj_set_style_bg_color(lv_scr_act(), lv_color_make(0xFF, 0xFF, 0xFF), 0);
+
+    /*Create a Demo*/
+    // lv_demo_widgets();
+    // lv_demo_widgets_start_slideshow();
+    // lv_demo_music();
+    lv_example_anim_1();
+
+    /*Handle LVGL tasks*/
+    while(1) {
+        lv_timer_handler();
+        usleep(5000);
     }
 
-    lv_obj_t * label = lv_label_create(lv_scr_act());
-    lv_style_set_text_font(&ft_style, ft_info.font);
-    lv_obj_add_style(label, &ft_style, LV_STATE_DEFAULT);
-    lv_label_set_text(label, "2022年05月24日!");
-    lv_obj_set_size(label, 1200, 600);
-    lv_obj_set_pos(label, 0, 0);
-
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, label);
-    lv_anim_set_values(&a, lv_obj_get_x(label), 1920);
-    lv_anim_set_time(&a, 19200);
-    lv_anim_set_exec_cb(&a, anim_x_cb);
-    lv_anim_set_path_cb(&a, lv_anim_path_linear);
-    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_start(&a);
-#else
-  lv_obj_t *image = lv_img_create(lv_scr_act());
-  if (image) {
-    lv_obj_set_width(image, LV_SIZE_CONTENT);
-    lv_obj_set_height(image, LV_SIZE_CONTENT);
-    lv_img_set_src(image, "A:/nfsroot/text_pic.png");
-    lv_obj_set_pos(image, 40, 0);
-    static lv_style_t style_image;
-    lv_style_init(&style_image);
-    lv_style_set_bg_opa(&style_image, LV_OPA_TRANSP); // 不透明
-    lv_style_set_border_width(&style_image, 2);
-    lv_style_set_border_color(&style_image, lv_color_make(0xff, 0x00, 0x00));
-    lv_obj_add_style(image, &style_image, LV_STATE_DEFAULT);
-
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, image);
-    lv_anim_set_values(&a, lv_obj_get_x(image), 1920);
-    lv_anim_set_time(&a, 19200);
-    lv_anim_set_exec_cb(&a, anim_x_cb);
-    lv_anim_set_path_cb(&a, lv_anim_path_linear);
-    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_start(&a);
-  }
-#endif
-
+    return 0;
 }
-
-#endif
-
-/**
- * Open a PNG image from a file and a variable
- */
-void lv_example_png_1(void)
-{
-  LV_IMG_DECLARE(img_wink_png);
-  lv_obj_t * img;
-
-  img = lv_img_create(lv_scr_act());
-  // lv_img_set_src(img, &img_wink_png);
-  // lv_obj_align(img, LV_ALIGN_LEFT_MID, 20, 0);
-  //
-  // img = lv_img_create(lv_scr_act());
-  /* Assuming a File system is attached to letter 'A'
-   * E.g. set LV_USE_FS_STDIO 'A' in lv_conf.h */
-  lv_img_set_src(img, "A:/nfsroot/text_pic.png");
-  lv_obj_align(img, LV_ALIGN_RIGHT_MID, -20, 0);
-}
-
-int main(int argc, char *argv[])
-{
-  /*LittlevGL init*/
-  lv_init();
-
-  /*Linux frame buffer device init*/
-  fbdev_init();
-  // fbdev_set_colorkey(true, lv_color_make(0xff, 0xc3, 0xc0));
-
-  /*A small buffer for LittlevGL to draw the screen's content*/
-  static lv_color_t buf1[DISP_BUF_SIZE];
-
-  /*Initialize a descriptor for the buffer*/
-  static lv_disp_draw_buf_t disp_buf;
-  lv_disp_draw_buf_init(&disp_buf, buf1, NULL, DISP_BUF_SIZE);
-
-  /*Initialize and register a display driver*/
-  static lv_disp_drv_t disp_drv;
-  lv_disp_drv_init(&disp_drv);
-  disp_drv.draw_buf   = &disp_buf;
-  disp_drv.flush_cb   = fbdev_flush;
-  disp_drv.hor_res    = fbdev_get_width();
-  disp_drv.ver_res    = fbdev_get_height();
-#ifdef ENABLE_FB_DOUBLE_BUFFER
-  // NOTE：如果使用framebuffer的双buffer模式，必须使用完全刷新
-  disp_drv.full_refresh = 1;
-#endif
-  lv_disp_drv_register(&disp_drv);
-
-  lv_example_anim_1();
-  // lv_example_png_1();
-
-  /*Handle LitlevGL tasks (tickless mode)*/
-  while(1) {
-    lv_timer_handler();
-#if LV_TICK_CUSTOM == 0
-    lv_tick_inc(5);
-#endif
-    usleep(5000);
-  }
-  return 0;
-}
-
