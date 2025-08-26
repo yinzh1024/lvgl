@@ -93,8 +93,27 @@ static uint32_t tick_get_cb(void);
     #define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 #endif
 
-#define SCREEN_WIDTH 1920
-#define SCREEN_HEIGHT 1080
+#define PHY_SCREEN_WIDTH 1920
+#define PHY_SCREEN_HEIGHT 1080
+
+#define LV_SCREEN_WIDTH 1088 // must align 16
+#define LV_SCREEN_HEIGHT 1080
+
+#ifdef CHIP_PLATFORM_SSTAR_V2_0
+
+#define FB_IOC_MAGIC 'F'
+#define FBIOGET_SCREEN_LOCATION _IOR(FB_IOC_MAGIC, 0x60, MI_FB_Rectangle_t)
+#define FBIOSET_SCREEN_LOCATION _IOW(FB_IOC_MAGIC, 0x61, MI_FB_Rectangle_t)
+
+typedef struct MI_FB_Rectangle_s
+{
+    uint16_t x_pos;
+    uint16_t y_pos;
+    uint16_t width;
+    uint16_t height;
+}MI_FB_Rectangle_t;
+
+#endif
 
 /**********************
  *   GLOBAL FUNCTIONS
@@ -119,7 +138,7 @@ lv_display_t * lv_linux_fbdev_create(void)
     LV_ASSERT_MALLOC(dsc);
     if(dsc == NULL) return NULL;
 
-    lv_display_t * disp = lv_display_create(SCREEN_WIDTH, SCREEN_HEIGHT);
+    lv_display_t * disp = lv_display_create(LV_SCREEN_WIDTH, LV_SCREEN_HEIGHT);
     if(disp == NULL) {
         lv_free(dsc);
         return NULL;
@@ -183,8 +202,8 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
 
     dsc->vinfo.xres = disp->hor_res;
     dsc->vinfo.yres = disp->ver_res;
-    dsc->vinfo.xres_virtual = disp->hor_res;
-    dsc->vinfo.yres_virtual = disp->ver_res + dsc->vinfo.yoffset;
+    dsc->vinfo.xres_virtual = LV_SCREEN_WIDTH;
+    dsc->vinfo.yres_virtual = LV_SCREEN_HEIGHT;
     dsc->vinfo.bits_per_pixel = LV_COLOR_DEPTH;
 #if LV_COLOR_DEPTH == 32
     struct fb_bitfield  s_a32 = {24, 8, 0};
@@ -205,10 +224,17 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
     dsc->vinfo.green = s_g24;
     dsc->vinfo.blue = s_b24;
 #elif LV_COLOR_DEPTH == 16
+#ifdef CHIP_PLATFORM_SSTAR_V2_0
     struct fb_bitfield  s_a16 = {0, 0, 0};
     struct fb_bitfield  s_r16 = {11, 5, 0};
     struct fb_bitfield  s_g16 = {5, 6, 0};
     struct fb_bitfield  s_b16 = {0, 5, 0};
+#elif defined(CHIP_PLATFORM_HISI_V6.0)
+    struct fb_bitfield  s_a16 = {12, 4, 0};
+    struct fb_bitfield  s_r16 = {8, 4, 0};
+    struct fb_bitfield  s_g16 = {4, 4, 0};
+    struct fb_bitfield  s_b16 = {0, 4, 0};
+#endif
     dsc->vinfo.transp = s_a16;
     dsc->vinfo.red = s_r16;
     dsc->vinfo.green = s_g16;
@@ -232,6 +258,16 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
         perror("Error reading variable information");
         return;
     }
+
+#ifdef CHIP_PLATFORM_SSTAR_V2_0
+    /* Set variable screen pos */
+    // MI_FB_Rectangle_t rect = {0, 0, LV_SCREEN_WIDTH, LV_SCREEN_HEIGHT};
+    MI_FB_Rectangle_t rect = {PHY_SCREEN_WIDTH - LV_SCREEN_WIDTH, PHY_SCREEN_HEIGHT - LV_SCREEN_HEIGHT, LV_SCREEN_WIDTH, LV_SCREEN_HEIGHT};
+    if(ioctl(dsc->fbfd, FBIOSET_SCREEN_LOCATION, &rect) == -1) {
+        perror("Error FBIOSET_SCREEN_LOCATION");
+        return;
+    }
+#endif
 #endif /* LV_LINUX_FBDEV_BSD */
 
     LV_LOG_INFO("%dx%d, %dbpp", dsc->vinfo.xres, dsc->vinfo.yres, dsc->vinfo.bits_per_pixel);
@@ -338,6 +374,8 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * colo
     lv_area_t rotated_area;
     lv_display_rotation_t rotation = lv_display_get_rotation(disp);
 
+    uint64_t s_pts, e_pts;
+    get_cur_pts(&s_pts);
     /* Not all framebuffer kernel drivers support hardware rotation, so we need to handle it in software here */
     if(rotation != LV_DISPLAY_ROTATION_0 && LV_LINUX_FBDEV_RENDER_MODE == LV_DISPLAY_RENDER_MODE_PARTIAL) {
         /* (Re)allocate temporary buffer if needed */
@@ -376,6 +414,12 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * colo
             h = lv_area_get_height(area);
         }
     }
+    get_cur_pts(&e_pts);
+    static int64_t max_rotate_cost = 0;
+    if (e_pts - s_pts > max_rotate_cost) {
+        max_rotate_cost = e_pts - s_pts;
+    }
+    printf("rotate cost %lld, max: %lld us\n", e_pts - s_pts, max_rotate_cost);
 
     /* Ensure that we're within the framebuffer's bounds */
     if(area->x2 < 0 || area->y2 < 0 || area->x1 > (int32_t)dsc->vinfo.xres - 1 || area->y1 > (int32_t)dsc->vinfo.yres - 1) {
