@@ -469,4 +469,6 @@ INSTALL(TARGETS lvgl
 
 IF(CHIP_PLATFORM  STREQUAL "hisi" OR CHIP_PLATFORM  STREQUAL "hisi_v6.0" )
   add_subdirectory(demos/hisi_demo)
+ELSEIF(CHIP_PLATFORM  STREQUAL "sigmastar" OR CHIP_PLATFORM  STREQUAL "sigmastar_v2.0" )
+  add_subdirectory(demos/sstar_demo)
 ENDIF()
