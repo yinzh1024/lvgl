@@ -15,7 +15,7 @@
 .section .note.GNU-stack,"",%progbits
 #endif /* __ELF__ */
 
-#if LV_USE_DRAW_SW_ASM == LV_DRAW_SW_ASM_NEON
+#if LV_USE_DRAW_SW_ASM == LV_DRAW_SW_ASM_NEON && !defined(__aarch64__)
 
 .text
 .fpu neon

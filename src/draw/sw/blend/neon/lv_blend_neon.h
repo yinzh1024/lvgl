@@ -23,7 +23,7 @@ extern "C" {
 /*********************
  *      DEFINES
  *********************/
-#if !defined(__ASSEMBLY__)
+#if !defined(__ASSEMBLY__) && !defined(__aarch64__)
 
 #if __GNUC__ >= 4
 #define LVGL_HIDDEN __attribute__((visibility("hidden")))

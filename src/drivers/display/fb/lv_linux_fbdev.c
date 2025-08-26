@@ -10,6 +10,7 @@
 #if LV_USE_LINUX_FBDEV
 
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -99,6 +100,17 @@ static uint32_t tick_get_cb(void);
  *   GLOBAL FUNCTIONS
  **********************/
 
+static int get_cur_pts(uint64_t *pts) {
+    struct timespec tp;
+    if (clock_gettime(CLOCK_MONOTONIC, &tp) != 0) {
+        printf("get clock time failed\n");
+        *pts = 0;
+        return -1;
+    }
+    *pts = ((uint64_t)tp.tv_sec) * 1000000L + (uint64_t)(tp.tv_nsec / 1000);
+    return 0;
+}
+
 lv_display_t * lv_linux_fbdev_create(void)
 {
     lv_tick_set_cb(tick_get_cb);
@@ -173,7 +185,8 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
     dsc->vinfo.yres = disp->ver_res;
     dsc->vinfo.xres_virtual = disp->hor_res;
     dsc->vinfo.yres_virtual = disp->ver_res + dsc->vinfo.yoffset;
-#if 1 // ARGB8888
+    dsc->vinfo.bits_per_pixel = LV_COLOR_DEPTH;
+#if LV_COLOR_DEPTH == 32
     struct fb_bitfield  s_a32 = {24, 8, 0};
     struct fb_bitfield  s_r32 = {16, 8, 0};
     struct fb_bitfield  s_g32 = {8, 8, 0};
@@ -182,28 +195,16 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
     dsc->vinfo.red = s_r32;
     dsc->vinfo.green = s_g32;
     dsc->vinfo.blue = s_b32;
-    dsc->vinfo.bits_per_pixel = 32;
-#elif 0 // ARGB1555
-    struct fb_bitfield  s_a16 = {15, 1, 0};
-    struct fb_bitfield  s_r16 = {10, 5, 0};
-    struct fb_bitfield  s_g16 = {5, 5, 0};
-    struct fb_bitfield  s_b16 = {0, 5, 0};
-    dsc->vinfo.transp = s_a16;
-    dsc->vinfo.red = s_r16;
-    dsc->vinfo.green = s_g16;
-    dsc->vinfo.blue = s_b16;
-    dsc->vinfo.bits_per_pixel = 16;
-#elif 0 // ARGB4444
-    struct fb_bitfield  s_a16 = {12, 4, 0};
-    struct fb_bitfield  s_r16 = {8, 4, 0};
-    struct fb_bitfield  s_g16 = {4, 4, 0};
-    struct fb_bitfield  s_b16 = {0, 4, 0};
-    dsc->vinfo.transp = s_a16;
-    dsc->vinfo.red = s_r16;
-    dsc->vinfo.green = s_g16;
-    dsc->vinfo.blue = s_b16;
-    dsc->vinfo.bits_per_pixel = 16;
-#else
+#elif LV_COLOR_DEPTH == 24
+    struct fb_bitfield  s_a24 = {0, 0, 0};
+    struct fb_bitfield  s_r24 = {16, 8, 0};
+    struct fb_bitfield  s_g24 = {8, 8, 0};
+    struct fb_bitfield  s_b24 = {0, 8, 0};
+    dsc->vinfo.transp = s_a24;
+    dsc->vinfo.red = s_r24;
+    dsc->vinfo.green = s_g24;
+    dsc->vinfo.blue = s_b24;
+#elif LV_COLOR_DEPTH == 16
     struct fb_bitfield  s_a16 = {0, 0, 0};
     struct fb_bitfield  s_r16 = {11, 5, 0};
     struct fb_bitfield  s_g16 = {5, 6, 0};
@@ -212,7 +213,6 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
     dsc->vinfo.red = s_r16;
     dsc->vinfo.green = s_g16;
     dsc->vinfo.blue = s_b16;
-    dsc->vinfo.bits_per_pixel = 16;
 #endif
     dsc->vinfo.activate = FB_ACTIVATE_NOW;
 
@@ -400,7 +400,7 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * colo
         }
     }
     else {
-        // TODO: use dma 'MI_SYS_BufBlitPa'
+        // NOTE: 这里改为使用硬件dma效果不明显
         w = lv_area_get_width(area);
         for(y = area->y1; y <= area->y2; y++) {
             write_to_fb(dsc, fb_pos, color_p, w * px_size);

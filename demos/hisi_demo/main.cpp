@@ -107,7 +107,7 @@ void lv_example_anim_1(void)
     // }
     // create_rotate_label(screen,  &ft_style);
 
-    lv_obj_t *label_list[1];
+    lv_obj_t *label_list[4];
     for (int i = 0; i < sizeof(label_list) / sizeof(label_list[0]); i++) {
         label_list[i] = lv_label_create(lv_scr_act());
         lv_obj_add_style(label_list[i], &ft_style, LV_STATE_DEFAULT);

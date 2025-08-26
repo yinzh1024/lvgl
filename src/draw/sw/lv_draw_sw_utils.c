@@ -7,6 +7,12 @@
  *      INCLUDES
  *********************/
 #include "lv_draw_sw_utils.h"
+
+#if LV_USE_DRAW_SW_ASM == LV_DRAW_SW_ASM_NEON
+#include <stdint.h>
+#include <arm_neon.h>
+#endif
+
 #if LV_USE_DRAW_SW
 
 /*********************
@@ -349,6 +355,160 @@ void lv_draw_sw_rotate(const void * src, void * dest, int32_t src_width, int32_t
 
 #if LV_DRAW_SW_SUPPORT_ARGB8888 || LV_DRAW_SW_SUPPORT_XRGB8888
 
+#if (LV_USE_DRAW_SW_ASM == LV_DRAW_SW_ASM_NEON) && defined(__aarch64__)
+static inline uint32x4_t reverse_u32x4(uint32x4_t v) {
+    uint32x4_t t = vrev64q_u32(v);
+    return vextq_u32(t, t, 2);
+}
+
+void rotate270_argb8888(const uint32_t * src, uint32_t * dst,
+                       int32_t src_w, int32_t src_h,
+                       int32_t src_stride, int32_t dst_stride)
+{
+    const int src_stride_px = src_stride / 4;
+    const int dst_stride_px = dst_stride / 4;
+
+    const int tile = 4;
+    const int tile_w = (src_w / tile) * tile;
+    const int tile_h = (src_h / tile) * tile;
+
+    for (int y = 0; y < tile_h; y += tile) {
+        const uint32_t* s0 = src + (y+0)*src_stride_px;
+        const uint32_t* s1 = src + (y+1)*src_stride_px;
+        const uint32_t* s2 = src + (y+2)*src_stride_px;
+        const uint32_t* s3 = src + (y+3)*src_stride_px;
+
+        for (int x = 0; x < tile_w; x += tile) {
+            uint32x4_t a0 = vld1q_u32(s0+x);
+            uint32x4_t a1 = vld1q_u32(s1+x);
+            uint32x4_t a2 = vld1q_u32(s2+x);
+            uint32x4_t a3 = vld1q_u32(s3+x);
+
+            uint32x4x2_t t0 = vtrnq_u32(a0,a1);
+            uint32x4x2_t t1 = vtrnq_u32(a2,a3);
+
+            uint64x2_t u0 = vreinterpretq_u64_u32(t0.val[0]);
+            uint64x2_t u1 = vreinterpretq_u64_u32(t0.val[1]);
+            uint64x2_t u2 = vreinterpretq_u64_u32(t1.val[0]);
+            uint64x2_t u3 = vreinterpretq_u64_u32(t1.val[1]);
+
+            uint32x4_t b0 = vreinterpretq_u32_u64(vzip1q_u64(u0,u2));
+            uint32x4_t b1 = vreinterpretq_u32_u64(vzip2q_u64(u0,u2));
+            uint32x4_t b2 = vreinterpretq_u32_u64(vzip1q_u64(u1,u3));
+            uint32x4_t b3 = vreinterpretq_u32_u64(vzip2q_u64(u1,u3));
+
+            int dst_x_start = (src_h-1) - (y+3);
+
+            vst1q_u32(dst + (x+0)*dst_stride_px + dst_x_start, reverse_u32x4(b0));
+            vst1q_u32(dst + (x+1)*dst_stride_px + dst_x_start, reverse_u32x4(b1));
+            vst1q_u32(dst + (x+2)*dst_stride_px + dst_x_start, reverse_u32x4(b2));
+            vst1q_u32(dst + (x+3)*dst_stride_px + dst_x_start, reverse_u32x4(b3));
+        }
+    }
+
+    // 收尾
+    for (int y = 0; y < src_h; ++y)
+        for (int x = tile_w; x < src_w; ++x) {
+            uint32_t pix = src[y*src_stride_px+x];
+            int dy = x, dx = (src_h-1)-y;
+            dst[dy*dst_stride_px + dx] = pix;
+        }
+    for (int y = tile_h; y < src_h; ++y)
+        for (int x = 0; x < src_w; ++x) {
+            uint32_t pix = src[y*src_stride_px+x];
+            int dy = x, dx = (src_h-1)-y;
+            dst[dy*dst_stride_px + dx] = pix;
+        }
+}
+
+void rotate180_argb8888(const uint32_t * src, uint32_t * dst,
+                        int32_t src_w, int32_t src_h,
+                        int32_t src_stride, int32_t dst_stride)
+{
+    const int src_stride_px = src_stride / 4;
+    const int dst_stride_px = dst_stride / 4;
+    const int total_px = src_w * src_h;
+
+    const uint32_t* s = src;
+    uint32_t* d = dst;
+
+    int i = 0;
+    int n4 = total_px & ~3; // 4 对齐
+    for (; i < n4; i += 4) {
+        uint32x4_t v = vld1q_u32(s+i);
+        v = reverse_u32x4(v);
+        // 目标位置倒序
+        vst1q_u32(d + (total_px-4-i), v);
+    }
+    // 收尾
+    for (; i < total_px; ++i) {
+        d[total_px-1-i] = s[i];
+    }
+}
+
+void rotate90_argb8888(const uint32_t * src, uint32_t * dst,
+                        int32_t src_w, int32_t src_h,
+                        int32_t src_stride, int32_t dst_stride)
+{
+    const int src_stride_px = src_stride / 4;
+    const int dst_stride_px = dst_stride / 4;
+
+    const int tile = 4;
+    const int tile_w = (src_w / tile) * tile;
+    const int tile_h = (src_h / tile) * tile;
+
+    for (int y = 0; y < tile_h; y += tile) {
+        const uint32_t* s0 = src + (y+0)*src_stride_px;
+        const uint32_t* s1 = src + (y+1)*src_stride_px;
+        const uint32_t* s2 = src + (y+2)*src_stride_px;
+        const uint32_t* s3 = src + (y+3)*src_stride_px;
+
+        for (int x = 0; x < tile_w; x += tile) {
+            uint32x4_t a0 = vld1q_u32(s0+x);
+            uint32x4_t a1 = vld1q_u32(s1+x);
+            uint32x4_t a2 = vld1q_u32(s2+x);
+            uint32x4_t a3 = vld1q_u32(s3+x);
+
+            uint32x4x2_t t0 = vtrnq_u32(a0,a1);
+            uint32x4x2_t t1 = vtrnq_u32(a2,a3);
+
+            uint64x2_t u0 = vreinterpretq_u64_u32(t0.val[0]);
+            uint64x2_t u1 = vreinterpretq_u64_u32(t0.val[1]);
+            uint64x2_t u2 = vreinterpretq_u64_u32(t1.val[0]);
+            uint64x2_t u3 = vreinterpretq_u64_u32(t1.val[1]);
+
+            uint32x4_t b0 = vreinterpretq_u32_u64(vzip1q_u64(u0,u2));
+            uint32x4_t b1 = vreinterpretq_u32_u64(vzip2q_u64(u0,u2));
+            uint32x4_t b2 = vreinterpretq_u32_u64(vzip1q_u64(u1,u3));
+            uint32x4_t b3 = vreinterpretq_u32_u64(vzip2q_u64(u1,u3));
+
+            // dst_x = y..y+3, dst_y = (src_w-1)-(x..x+3)
+            int dst_y_start = (src_w-1) - x;
+
+            vst1q_u32(dst + (dst_y_start-0)*dst_stride_px + (y+0), b0);
+            vst1q_u32(dst + (dst_y_start-1)*dst_stride_px + (y+0), b1);
+            vst1q_u32(dst + (dst_y_start-2)*dst_stride_px + (y+0), b2);
+            vst1q_u32(dst + (dst_y_start-3)*dst_stride_px + (y+0), b3);
+        }
+    }
+
+    // 收尾
+    for (int y = 0; y < src_h; ++y)
+        for (int x = tile_w; x < src_w; ++x) {
+            uint32_t pix = src[y*src_stride_px+x];
+            int dy = (src_w-1)-x, dx = y;
+            dst[dy*dst_stride_px + dx] = pix;
+        }
+    for (int y = tile_h; y < src_h; ++y)
+        for (int x = 0; x < src_w; ++x) {
+            uint32_t pix = src[y*src_stride_px+x];
+            int dy = (src_w-1)-x, dx = y;
+            dst[dy*dst_stride_px + dx] = pix;
+        }
+}
+
+#else
+
 static void rotate270_argb8888(const uint32_t * src, uint32_t * dst, int32_t src_width, int32_t src_height,
                                int32_t src_stride,
                                int32_t dst_stride)
@@ -409,6 +569,7 @@ static void rotate90_argb8888(const uint32_t * src, uint32_t * dst, int32_t src_
         }
     }
 }
+#endif
 
 #endif
 
