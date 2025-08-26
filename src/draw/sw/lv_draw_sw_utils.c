@@ -673,6 +673,94 @@ void rotate180_rgb565(const uint16_t* src, uint16_t* dst,
     }
 }
 
+// transpose 4x4 of uint16: input rows r0..r3 (uint16x4_t), output cols in col[0..3]
+static inline void transpose4x4_u16(uint16x4_t r0, uint16x4_t r1,
+                                    uint16x4_t r2, uint16x4_t r3,
+                                    uint16x4_t *col0, uint16x4_t *col1,
+                                    uint16x4_t *col2, uint16x4_t *col3)
+{
+    // stage1: pairwise 16-bit transpose
+    uint16x4x2_t t0 = vtrn_u16(r0, r1); // t0.val[0] has r0[0], r1[0], r0[2], r1[2]
+    uint16x4x2_t t1 = vtrn_u16(r2, r3);
+
+    // stage2: 32-bit transpose to finish 4x4
+    uint32x2x2_t u0 = vtrn_u32(vreinterpret_u32_u16(t0.val[0]),
+                               vreinterpret_u32_u16(t1.val[0]));
+    uint32x2x2_t u1 = vtrn_u32(vreinterpret_u32_u16(t0.val[1]),
+                               vreinterpret_u32_u16(t1.val[1]));
+
+    *col0 = vreinterpret_u16_u32(u0.val[0]); // contains r0[0], r1[0], r2[0], r3[0]
+    *col1 = vreinterpret_u16_u32(u1.val[0]); // contains r0[1], r1[1], r2[1], r3[1]
+    *col2 = vreinterpret_u16_u32(u0.val[1]); // contains r0[2], r1[2], r2[2], r3[2]
+    *col3 = vreinterpret_u16_u32(u1.val[1]); // contains r0[3], r1[3], r2[3], r3[3]
+}
+
+#if 1 // 4x4版本
+void rotate90_rgb565(const uint16_t* src, uint16_t* dst,
+                      int32_t src_width, int32_t src_height,
+                      int32_t src_stride, int32_t dst_stride)
+{
+    if (LV_RESULT_OK == LV_DRAW_SW_ROTATE90_RGB565(src, dst, src_width, src_height, src_stride, dst_stride)) {
+        return;
+    }
+
+    src_stride /= sizeof(uint16_t);
+    dst_stride /= sizeof(uint16_t);
+
+    const int B = 4;
+    int y, x;
+
+    // process 4x4 blocks
+    for (y = 0; y <= src_height - B; y += B) {
+        for (x = 0; x <= src_width - B; x += B) {
+            // load 4 rows
+            uint16x4_t r0 = vld1_u16(src + (y + 0) * src_stride + x);
+            uint16x4_t r1 = vld1_u16(src + (y + 1) * src_stride + x);
+            uint16x4_t r2 = vld1_u16(src + (y + 2) * src_stride + x);
+            uint16x4_t r3 = vld1_u16(src + (y + 3) * src_stride + x);
+
+            // transpose -> columns c0..c3 (each uint16x4_t)
+            uint16x4_t c0, c1, c2, c3;
+            transpose4x4_u16(r0, r1, r2, r3, &c0, &c1, &c2, &c3);
+
+            // For rotate270 (counter-clockwise 90°):
+            // src[y+i][x+j] -> dst_row = src_width - 1 - (x + j), dst_col = y + i
+            // For fixed j (column), c_j holds 4 values for i=0..3 and dst_col range is contiguous (y..y+3),
+            // and dst_row is constant => we can directly write the vector to dst row at dst_col start.
+            int dst_row0 = src_width - 1 - (x + 0);
+            int dst_row1 = src_width - 1 - (x + 1);
+            int dst_row2 = src_width - 1 - (x + 2);
+            int dst_row3 = src_width - 1 - (x + 3);
+
+            // write contiguous 4 pixels to each dst row at column y
+            vst1_u16(dst + dst_row0 * dst_stride + y, c0);
+            vst1_u16(dst + dst_row1 * dst_stride + y, c1);
+            vst1_u16(dst + dst_row2 * dst_stride + y, c2);
+            vst1_u16(dst + dst_row3 * dst_stride + y, c3);
+        }
+
+        // tail for x in this y..y+3 band
+        for (x = (src_width & ~(B - 1)); x < src_width; ++x) {
+            for (int ry = 0; ry < B; ++ry) {
+                uint16_t v = src[(y + ry) * src_stride + x];
+                int dst_row = src_width - 1 - x;
+                int dst_col = y + ry;
+                dst[dst_row * dst_stride + dst_col] = v;
+            }
+        }
+    }
+
+    // tail for y (rows that don't fit 4)
+    for (y = (src_height & ~(B - 1)); y < src_height; ++y) {
+        for (x = 0; x < src_width; ++x) {
+            uint16_t v = src[y * src_stride + x];
+            int dst_row = src_width - 1 - x;
+            int dst_col = y;
+            dst[dst_row * dst_stride + dst_col] = v;
+        }
+    }
+}
+#else // 8 pixel版本
 void rotate90_rgb565(const uint16_t* src, uint16_t* dst,
                       int32_t src_width, int32_t src_height,
                       int32_t src_stride, int32_t dst_stride)
@@ -706,7 +794,103 @@ void rotate90_rgb565(const uint16_t* src, uint16_t* dst,
         }
     }
 }
+#endif
 
+#if 1 // 4x4版本
+void rotate270_rgb565(const uint16_t* src, uint16_t* dst,
+                     int32_t src_width, int32_t src_height,
+                     int32_t src_stride, int32_t dst_stride)
+{
+    if (LV_RESULT_OK == LV_DRAW_SW_ROTATE270_RGB565(src, dst, src_width, src_height, src_stride, dst_stride)) {
+        return;
+    }
+
+    src_stride /= sizeof(uint16_t);
+    dst_stride /= sizeof(uint16_t);
+
+    const int B = 4;
+    int y, x;
+
+    // process 4x4 blocks
+    for (y = 0; y <= src_height - B; y += B) {
+        for (x = 0; x <= src_width - B; x += B) {
+            // load 4 rows of 4 pixels
+            uint16x4_t r0 = vld1_u16(src + (y + 0) * src_stride + x);
+            uint16x4_t r1 = vld1_u16(src + (y + 1) * src_stride + x);
+            uint16x4_t r2 = vld1_u16(src + (y + 2) * src_stride + x);
+            uint16x4_t r3 = vld1_u16(src + (y + 3) * src_stride + x);
+
+            // transpose to get columns
+            uint16x4_t c0, c1, c2, c3;
+            transpose4x4_u16(r0, r1, r2, r3, &c0, &c1, &c2, &c3);
+
+            // For rotate90 (clockwise):
+            // src[y+i][x+j] -> dst_row = x + j, dst_col = src_height - 1 - (y + i)
+            // For fixed j (column), c_j holds {s0,s1,s2,s3} corresponding to i=0..3,
+            // and dst_row is constant (x + j), dst_col varies -> not contiguous.
+            // So store vector to temp and write scalar to dst rows.
+            uint16_t tmp[4];
+
+            // column 0 -> dst_row = x + 0
+            vst1_u16(tmp, c0);
+            {
+                int dst_row = x + 0;
+                dst[dst_row * dst_stride + (src_height - 1 - (y + 0))] = tmp[0];
+                dst[dst_row * dst_stride + (src_height - 1 - (y + 1))] = tmp[1];
+                dst[dst_row * dst_stride + (src_height - 1 - (y + 2))] = tmp[2];
+                dst[dst_row * dst_stride + (src_height - 1 - (y + 3))] = tmp[3];
+            }
+
+            vst1_u16(tmp, c1);
+            {
+                int dst_row = x + 1;
+                dst[dst_row * dst_stride + (src_height - 1 - (y + 0))] = tmp[0];
+                dst[dst_row * dst_stride + (src_height - 1 - (y + 1))] = tmp[1];
+                dst[dst_row * dst_stride + (src_height - 1 - (y + 2))] = tmp[2];
+                dst[dst_row * dst_stride + (src_height - 1 - (y + 3))] = tmp[3];
+            }
+
+            vst1_u16(tmp, c2);
+            {
+                int dst_row = x + 2;
+                dst[dst_row * dst_stride + (src_height - 1 - (y + 0))] = tmp[0];
+                dst[dst_row * dst_stride + (src_height - 1 - (y + 1))] = tmp[1];
+                dst[dst_row * dst_stride + (src_height - 1 - (y + 2))] = tmp[2];
+                dst[dst_row * dst_stride + (src_height - 1 - (y + 3))] = tmp[3];
+            }
+
+            vst1_u16(tmp, c3);
+            {
+                int dst_row = x + 3;
+                dst[dst_row * dst_stride + (src_height - 1 - (y + 0))] = tmp[0];
+                dst[dst_row * dst_stride + (src_height - 1 - (y + 1))] = tmp[1];
+                dst[dst_row * dst_stride + (src_height - 1 - (y + 2))] = tmp[2];
+                dst[dst_row * dst_stride + (src_height - 1 - (y + 3))] = tmp[3];
+            }
+        }
+
+        // tail for x in this y..y+3 band
+        for (x = (src_width & ~(B - 1)); x < src_width; ++x) {
+            for (int ry = 0; ry < B; ++ry) {
+                uint16_t v = src[(y + ry) * src_stride + x];
+                int dst_row = x;
+                int dst_col = src_height - 1 - (y + ry);
+                dst[dst_row * dst_stride + dst_col] = v;
+            }
+        }
+    }
+
+    // tail for y (rows that don't fit 4)
+    for (y = (src_height & ~(B - 1)); y < src_height; ++y) {
+        for (x = 0; x < src_width; ++x) {
+            uint16_t v = src[y * src_stride + x];
+            int dst_row = x;
+            int dst_col = src_height - 1 - y;
+            dst[dst_row * dst_stride + dst_col] = v;
+        }
+    }
+}
+#else // 8 pixel版本
 void rotate270_rgb565(const uint16_t* src, uint16_t* dst,
                      int32_t src_width, int32_t src_height,
                      int32_t src_stride, int32_t dst_stride)
@@ -740,6 +924,7 @@ void rotate270_rgb565(const uint16_t* src, uint16_t* dst,
         }
     }
 }
+#endif
 
 #else
 static void rotate270_rgb565(const uint16_t * src, uint16_t * dst, int32_t src_width, int32_t src_height,
