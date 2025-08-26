@@ -7,6 +7,7 @@
  *      INCLUDES
  *********************/
 #include "lv_draw_sw_utils.h"
+#include <stdio.h>
 
 #if LV_USE_DRAW_SW_ASM == LV_DRAW_SW_ASM_NEON
 #include <stdint.h>
@@ -634,6 +635,113 @@ static void rotate270_rgb888(const uint8_t * src, uint8_t * dst, int32_t width, 
 
 #if LV_DRAW_SW_SUPPORT_RGB565
 
+#if (LV_USE_DRAW_SW_ASM == LV_DRAW_SW_ASM_NEON)
+void rotate180_rgb565(const uint16_t* src, uint16_t* dst,
+                      int32_t width, int32_t height,
+                      int32_t src_stride, int32_t dst_stride)
+{
+    if (LV_RESULT_OK == LV_DRAW_SW_ROTATE180_RGB565(src, dst, src_width, src_height, src_stride, dst_stride)) {
+        return;
+    }
+
+    src_stride /= sizeof(uint16_t);
+    dst_stride /= sizeof(uint16_t);
+
+    for (int y = 0; y < height; y++) {
+        const uint16_t* src_row = src + y * src_stride;
+        uint16_t* dst_row = dst + (height - 1 - y) * dst_stride;
+
+        int x = 0;
+        for (; x <= width - 8; x += 8) {
+            // 加载源像素（8 个 uint16_t）
+            uint16x8_t pixels = vld1q_u16(src_row + x);
+
+            // 先对 64bit 半部分反转（[0,1,2,3,4,5,6,7] → [1,0,3,2,5,4,7,6]）
+            uint16x8_t rev = vrev64q_u16(pixels);
+
+            // 高低 64bit 交换（→ [7,6,5,4,3,2,1,0]）
+            rev = vcombine_u16(vget_high_u16(rev), vget_low_u16(rev));
+
+            // 存到目标行，写到倒序位置
+            vst1q_u16(dst_row + (width - 8 - x), rev);
+        }
+
+        // 处理剩余像素
+        for (; x < width; x++) {
+            dst_row[width - 1 - x] = src_row[x];
+        }
+    }
+}
+
+void rotate90_rgb565(const uint16_t* src, uint16_t* dst,
+                      int32_t src_width, int32_t src_height,
+                      int32_t src_stride, int32_t dst_stride)
+{
+    if (LV_RESULT_OK == LV_DRAW_SW_ROTATE90_RGB565(src, dst, src_width, src_height, src_stride, dst_stride)) {
+        return;
+    }
+
+    src_stride /= sizeof(uint16_t);
+    dst_stride /= sizeof(uint16_t);
+
+    for (int y = 0; y < src_height; y++) {
+        const uint16_t* src_row = src + y * src_stride;
+        int dst_y = y;
+
+        int x = 0;
+        for (; x <= src_width - 8; x += 8) {
+            uint16x8_t pixels = vld1q_u16(src_row + x);
+            // 先存到临时数组
+            uint16_t tmp[8];
+            vst1q_u16(tmp, pixels);
+            for (int i = 0; i < 8; i++) {
+                int dst_x = src_width - 1 - (x + i);
+                dst[dst_x * dst_stride + dst_y] = tmp[i];
+            }
+        }
+        // 处理剩余像素
+        for (; x < src_width; x++) {
+            int dst_x = src_width - 1 - x;
+            dst[dst_x * dst_stride + dst_y] = src_row[x];
+        }
+    }
+}
+
+void rotate270_rgb565(const uint16_t* src, uint16_t* dst,
+                     int32_t src_width, int32_t src_height,
+                     int32_t src_stride, int32_t dst_stride)
+{
+    if (LV_RESULT_OK == LV_DRAW_SW_ROTATE270_RGB565(src, dst, src_width, src_height, src_stride, dst_stride)) {
+        return;
+    }
+
+    src_stride /= sizeof(uint16_t);
+    dst_stride /= sizeof(uint16_t);
+
+    // 遍历源图像每一行
+    for (int y = 0; y < src_height; y++) {
+        const uint16_t* src_row = src + y * src_stride;
+        int32_t dst_x = src_height - 1 - y;
+
+        int x = 0;
+        // 使用NEON一次处理8个像素
+        for (; x <= src_width - 8; x += 8) {
+            uint16x8_t pixels = vld1q_u16(src_row + x); // 加载8个像素
+            // 先存到临时数组
+            uint16_t tmp[8];
+            vst1q_u16(tmp, pixels);
+            for (int i = 0; i < 8; i++) {
+                dst[(x + i) * dst_stride + dst_x] = tmp[i];
+            }
+        }
+        // 处理剩余的像素
+        for (; x < src_width; x++) {
+            dst[x * dst_stride + dst_x] = src_row[x];
+        }
+    }
+}
+
+#else
 static void rotate270_rgb565(const uint16_t * src, uint16_t * dst, int32_t src_width, int32_t src_height,
                              int32_t src_stride,
                              int32_t dst_stride)
@@ -694,6 +802,7 @@ static void rotate90_rgb565(const uint16_t * src, uint16_t * dst, int32_t src_wi
         }
     }
 }
+#endif
 
 #endif
 
