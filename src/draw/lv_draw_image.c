@@ -358,6 +358,7 @@ static void img_decode_and_draw(lv_draw_task_t * t, const lv_draw_image_dsc_t * 
         relative_decoded_area->y2 = LV_COORD_MIN;
         lv_result_t res = LV_RESULT_OK;
 
+        // 逐行绘制图片数据
         while(res == LV_RESULT_OK) {
             res = lv_image_decoder_get_area(decoder_dsc, &relative_full_area_to_decode, relative_decoded_area);
 
