@@ -7,6 +7,7 @@
  *      INCLUDES
  *********************/
 #include "lv_linux_fbdev.h"
+#include "src/misc/lv_utils.h"
 #if LV_USE_LINUX_FBDEV
 
 #include <stdlib.h>
@@ -26,6 +27,8 @@
 #else
     #include <linux/fb.h>
 #endif /* LV_LINUX_FBDEV_BSD */
+
+#define DEBUG_TIME_COST 0
 
 #include "../../../display/lv_display_private.h"
 #include "../../../draw/sw/lv_draw_sw.h"
@@ -118,17 +121,6 @@ typedef struct MI_FB_Rectangle_s
 /**********************
  *   GLOBAL FUNCTIONS
  **********************/
-
-static int get_cur_pts(uint64_t *pts) {
-    struct timespec tp;
-    if (clock_gettime(CLOCK_MONOTONIC, &tp) != 0) {
-        printf("get clock time failed\n");
-        *pts = 0;
-        return -1;
-    }
-    *pts = ((uint64_t)tp.tv_sec) * 1000000L + (uint64_t)(tp.tv_nsec / 1000);
-    return 0;
-}
 
 lv_display_t * lv_linux_fbdev_create(void)
 {
@@ -374,8 +366,10 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * colo
     lv_area_t rotated_area;
     lv_display_rotation_t rotation = lv_display_get_rotation(disp);
 
+#if DEBUG_TIME_COST
     uint64_t s_pts, e_pts;
-    get_cur_pts(&s_pts);
+    lv_get_cur_pts(&s_pts);
+#endif
     /* Not all framebuffer kernel drivers support hardware rotation, so we need to handle it in software here */
     if(rotation != LV_DISPLAY_ROTATION_0 && LV_LINUX_FBDEV_RENDER_MODE == LV_DISPLAY_RENDER_MODE_PARTIAL) {
         /* (Re)allocate temporary buffer if needed */
@@ -414,12 +408,14 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * colo
             h = lv_area_get_height(area);
         }
     }
-    get_cur_pts(&e_pts);
+#if DEBUG_TIME_COST
+    lv_get_cur_pts(&e_pts);
     static int64_t max_rotate_cost = 0;
     if (e_pts - s_pts > max_rotate_cost) {
         max_rotate_cost = e_pts - s_pts;
     }
     printf("rotate cost %lld, max: %lld us\n", e_pts - s_pts, max_rotate_cost);
+#endif
 
     /* Ensure that we're within the framebuffer's bounds */
     if(area->x2 < 0 || area->y2 < 0 || area->x1 > (int32_t)dsc->vinfo.xres - 1 || area->y1 > (int32_t)dsc->vinfo.yres - 1) {
@@ -445,12 +441,24 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * colo
     }
     else {
         // NOTE: 这里改为使用硬件dma效果不明显
+#if DEBUG_TIME_COST
+        uint64_t s_pts, e_pts;
+        lv_get_cur_pts(&s_pts);
+#endif
         w = lv_area_get_width(area);
         for(y = area->y1; y <= area->y2; y++) {
             write_to_fb(dsc, fb_pos, color_p, w * px_size);
             fb_pos += dsc->finfo.line_length;
             color_p += w * px_size;
         }
+#if DEBUG_TIME_COST
+        lv_get_cur_pts(&e_pts);
+        static int64_t max_rotate_cost = 0;
+        if (e_pts - s_pts > max_rotate_cost) {
+            max_rotate_cost = e_pts - s_pts;
+        }
+        printf("write fb cost %lld, max: %lld us\n", e_pts - s_pts, max_rotate_cost);
+#endif
     }
 
     if(dsc->force_refresh) {

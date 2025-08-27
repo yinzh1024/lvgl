@@ -57,6 +57,7 @@ void * lv_utils_bsearch(const void * key, const void * base, size_t n, size_t si
  */
 lv_result_t lv_draw_buf_save_to_file(const lv_draw_buf_t * draw_buf, const char * path);
 
+lv_result_t lv_get_cur_pts(uint64_t *pts);
 /**
  * Reverse the order of the bytes in a 32-bit value.
  * @param x     a 32-bit value.

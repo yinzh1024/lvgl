@@ -90,6 +90,16 @@ lv_result_t lv_draw_buf_save_to_file(const lv_draw_buf_t * draw_buf, const char 
     return LV_RESULT_OK;
 }
 
+lv_result_t lv_get_cur_pts(uint64_t *pts) {
+    struct timespec tp;
+    if (clock_gettime(CLOCK_MONOTONIC, &tp) != 0) {
+        *pts = 0;
+        return LV_RESULT_INVALID;
+    }
+    *pts = ((uint64_t)tp.tv_sec) * 1000000L + (uint64_t)(tp.tv_nsec / 1000);
+    return LV_RESULT_OK;
+}
+
 /**********************
  *   STATIC FUNCTIONS
  **********************/
