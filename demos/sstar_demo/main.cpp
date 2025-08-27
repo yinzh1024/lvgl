@@ -7,6 +7,9 @@
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/prctl.h>
+
+#include "eventservice/util/proc_util.h"
 
 #define TEXT_FONT_SIZE 200
 
@@ -86,8 +89,8 @@ void lv_example_anim_1(void)
 {
     lv_obj_t *img = lv_image_create(lv_screen_active());
     // lv_image_set_src(img, "A:/nfsroot/test.bmp");
-    // lv_image_set_src(img, "A:/tmp/nfs/test.bmp");
-    lv_image_set_src(img, "A:/customer/test_dither.bmp");
+    lv_image_set_src(img, "A:/tmp/nfs/rgb-compose.bmp");
+    // lv_image_set_src(img, "A:/customer/test_dither.bmp");
     // lv_image_set_src(img, "A:/nfsroot/test_dither.bmp");
     // lv_image_set_src(img, "A:/nfsroot/white.bmp");
     // lv_image_set_src(img, "A:/nfsroot/red.bmp");
@@ -100,8 +103,14 @@ void lv_example_anim_1(void)
     lv_style_init(&ft_style);
     lv_style_set_text_font(&ft_style, font);
     lv_style_set_text_color(&ft_style, lv_color_make(0xFF, 0, 0));
+
+    static lv_style_t scroll_style;
+    lv_style_init(&scroll_style);
+    lv_style_set_bg_color(&scroll_style, lv_color_make(0xFF, 0, 0));
+
     lv_obj_t * screen = lv_screen_active();
     lv_obj_add_style(screen, &ft_style, LV_STATE_DEFAULT);
+    lv_obj_remove_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
     //
     // // for (int i = 0; i < 10; i++) {
     // //     test_rotate_label(screen, &ft_style, i * 10);
@@ -115,6 +124,7 @@ void lv_example_anim_1(void)
         lv_label_set_text(label_list[i], "2022年05月24日!");
         lv_obj_set_size(label_list[i], 3000, 600);
         lv_obj_set_pos(label_list[i], 0, i * 256);
+        lv_obj_remove_flag(label_list[i], LV_OBJ_FLAG_SCROLLABLE);
 
         lv_anim_t a;
         lv_anim_init(&a);
@@ -159,6 +169,8 @@ static void lv_linux_disp_init(void)
 
 int main(void)
 {
+    vzes::XProcUtil::set_affinity({3});
+
     lv_init();
 
     /*Linux display device init*/
@@ -172,6 +184,7 @@ int main(void)
     // lv_demo_music();
     lv_example_anim_1();
 
+    prctl(PR_SET_NAME, "LVGLMain");
     /*Handle LVGL tasks*/
     while(1) {
         lv_timer_handler();
