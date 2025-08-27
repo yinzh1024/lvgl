@@ -68,7 +68,9 @@
 
 #if LV_USE_STDLIB_MALLOC == LV_STDLIB_BUILTIN
     /** Size of memory available for `lv_malloc()` in bytes (>= 2kB) */
-    #define LV_MEM_SIZE (1024 * 1024)
+    // #define LV_MEM_SIZE (1024 * 1024) // if only bmp used
+    // #define LV_MEM_SIZE (3 * 1920 * 1080 * 4) // if png used
+    #define LV_MEM_SIZE (1024 * 1024 + 1920 * 1080 * 3) // if only jpeg used
 
     /** Size of the memory expand for `lv_malloc()` in bytes */
     #define LV_MEM_POOL_EXPAND_SIZE 0
@@ -452,11 +454,11 @@
  *  If size is not set to 0, the decoder will fail to decode when the cache is full.
  *  If size is 0, the cache function is not enabled and the decoded memory will be
  *  released immediately after use. */
-#define LV_CACHE_DEF_SIZE       0
+#define LV_CACHE_DEF_SIZE       (1920 * 1080 * 3)
 
 /** Default number of image header cache entries. The cache is used to store the headers of images
  *  The main logic is like `LV_CACHE_DEF_SIZE` but for image headers. */
-#define LV_IMAGE_HEADER_CACHE_DEF_CNT 0
+#define LV_IMAGE_HEADER_CACHE_DEF_CNT 2
 
 /** Number of stops allowed per gradient. Increase this to allow more stops.
  *  This adds (sizeof(lv_color_t) + 1) bytes per additional stop. */
@@ -905,7 +907,7 @@
 #endif
 
 /** LODEPNG decoder library */
-#define LV_USE_LODEPNG 1
+#define LV_USE_LODEPNG 0
 
 /** PNG decoder(libpng) library */
 #define LV_USE_LIBPNG 0
@@ -914,12 +916,14 @@
 #define LV_USE_BMP 1
 
 /** JPG + split JPG decoder library.
- *  Split JPG is a custom format optimized for embedded systems. */
+ *  Split JPG is a custom format optimized for embedded systems.
+ *  无依赖，但只支持baseline，不支持渐进式JPEG，没有应用缓存机制，性能较差
+ */
 #define LV_USE_TJPGD 0
 
 /** libjpeg-turbo decoder library.
  *  - Supports complete JPEG specifications and high-performance JPEG decoding. */
-#define LV_USE_LIBJPEG_TURBO 0
+#define LV_USE_LIBJPEG_TURBO 1
 
 /** GIF decoder library */
 #define LV_USE_GIF 0

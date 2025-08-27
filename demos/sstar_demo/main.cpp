@@ -88,14 +88,10 @@ void create_rotate_label(lv_obj_t *screen, lv_style_t *comm_style)
 void lv_example_anim_1(void)
 {
     lv_obj_t *img = lv_image_create(lv_screen_active());
-    // lv_image_set_src(img, "A:/nfsroot/test.bmp");
-    lv_image_set_src(img, "A:/tmp/nfs/rgb-compose.bmp");
+    // lv_image_set_src(img, "A:/tmp/nfs/rgb-compose.bmp");
+    // lv_image_set_src(img, "A:/tmp/nfs/rgb-compose.png");
+    lv_image_set_src(img, "A:/tmp/nfs/rgb-compose.jpg");
     // lv_image_set_src(img, "A:/customer/test_dither.bmp");
-    // lv_image_set_src(img, "A:/nfsroot/test_dither.bmp");
-    // lv_image_set_src(img, "A:/nfsroot/white.bmp");
-    // lv_image_set_src(img, "A:/nfsroot/red.bmp");
-    // lv_image_set_src(img, "A:/nfsroot/green.bmp");
-    // lv_image_set_src(img, "A:/nfsroot/blue.bmp");
     // lv_obj_center(img);
 
     lv_font_t * font = lv_tiny_ttf_create_file("A:/tmp/app/exec/font/DroidSans.ttf", TEXT_FONT_SIZE);

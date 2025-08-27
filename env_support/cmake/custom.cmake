@@ -71,6 +71,11 @@ add_definitions(-D_GNU_SOURCE)
 add_library(lvgl ${SOURCES})
 add_library(lvgl::lvgl ALIAS lvgl)
 
+set(PLATFORM_LINK_LIBS
+  ${PLATFORM_LINK_LIBS}
+  -lturbojpeg
+)
+
 IF(CHIP_PLATFORM STREQUAL "sigmastar")
   set(PLATFORM_LINK_LIBS
     ${PLATFORM_LINK_LIBS}
