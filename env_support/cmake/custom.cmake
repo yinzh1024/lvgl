@@ -65,6 +65,8 @@ file(GLOB_RECURSE DEMO_SOURCES ${LVGL_ROOT_DIR}/demos/*.c)
 file(GLOB_RECURSE THORVG_SOURCES ${LVGL_ROOT_DIR}/src/libs/thorvg/*.cpp
                                  ${LVGL_ROOT_DIR}/src/others/vg_lite_tvg/*.cpp)
 
+add_definitions(-D_GNU_SOURCE)
+
 # Build LVGL library
 add_library(lvgl ${SOURCES})
 add_library(lvgl::lvgl ALIAS lvgl)

@@ -54,6 +54,9 @@ lv_result_t lv_thread_init(lv_thread_t * thread, const char * const name,
     thread->callback = callback;
     thread->user_data = user_data;
     pthread_create(&thread->thread, &attr, generic_callback, thread);
+#if __USE_GNU
+    pthread_setname_np(thread->thread, name);
+#endif
     pthread_attr_destroy(&attr);
     return LV_RESULT_OK;
 }
