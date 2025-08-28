@@ -21,10 +21,10 @@
  *********************/
 
 /**Perform linear animations in max 1024 steps. Used in `path_cb`s*/
-#define LV_ANIM_RESOLUTION 1024
+#define LV_ANIM_RESOLUTION 128
 
 /**log2(LV_ANIM_RESOLUTION)*/
-#define LV_ANIM_RES_SHIFT 10
+#define LV_ANIM_RES_SHIFT 7
 
 /**In an anim. time this bit indicates that the value is speed, and not time*/
 #define LV_ANIM_SPEED_MASK 0x80000000
