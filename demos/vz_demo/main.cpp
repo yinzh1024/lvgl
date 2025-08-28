@@ -9,9 +9,9 @@
 #include <stdlib.h>
 #include <sys/prctl.h>
 
-#include "eventservice/util/proc_util.h"
+#define TEXT_FONT_SIZE 196
 
-#define TEXT_FONT_SIZE 200
+lv_obj_t *s_label_list[4];
 
 static const char *getenv_default(const char *name, const char *dflt)
 {
@@ -22,8 +22,10 @@ static void anim_x_cb(void * var, int32_t v)
 {
     char text[128];
     snprintf(text, sizeof(text) - 1, "你好，臻识：%d", rand());
-    lv_label_set_text((lv_obj_t *)var, text);
-    lv_obj_set_x((lv_obj_t *)var, v);
+    for (int i = 0; i < 4; i++) {
+        lv_label_set_text(s_label_list[i], text);
+        lv_obj_set_x(s_label_list[i], v);
+    }
 }
 
 static void anim_y_cb(void * var, int32_t v)
@@ -88,10 +90,12 @@ void create_rotate_label(lv_obj_t *screen, lv_style_t *comm_style)
 void lv_example_anim_1(void)
 {
     lv_obj_t *img = lv_image_create(lv_screen_active());
-    // lv_image_set_src(img, "A:/tmp/nfs/rgb-compose.bmp");
-    // lv_image_set_src(img, "A:/tmp/nfs/rgb-compose.png");
+    // lv_image_set_src(img, "A:/nfsroot/test.bmp");
+#ifdef CHIP_PLATFORM_HISI_V6_0
+    lv_image_set_src(img, "A:/nfsroot/rgb-compose.jpg");
+#elif CHIP_PLATFORM_SSTAR_V2_0
     lv_image_set_src(img, "A:/tmp/nfs/rgb-compose.jpg");
-    // lv_image_set_src(img, "A:/customer/test_dither.bmp");
+#endif
     // lv_obj_center(img);
 
     lv_font_t * font = lv_tiny_ttf_create_file("A:/tmp/app/exec/font/DroidSans.ttf", TEXT_FONT_SIZE);
@@ -99,39 +103,33 @@ void lv_example_anim_1(void)
     lv_style_init(&ft_style);
     lv_style_set_text_font(&ft_style, font);
     lv_style_set_text_color(&ft_style, lv_color_make(0xFF, 0, 0));
-
-    static lv_style_t scroll_style;
-    lv_style_init(&scroll_style);
-    lv_style_set_bg_color(&scroll_style, lv_color_make(0xFF, 0, 0));
-
     lv_obj_t * screen = lv_screen_active();
-    lv_obj_add_style(screen, &ft_style, LV_STATE_DEFAULT);
+    lv_obj_add_style(screen, &ft_style, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_remove_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
-    //
-    // // for (int i = 0; i < 10; i++) {
-    // //     test_rotate_label(screen, &ft_style, i * 10);
-    // // }
-    // // create_rotate_label(screen,  &ft_style);
-    //
-    lv_obj_t *label_list[4];
-    for (int i = 0; i < sizeof(label_list) / sizeof(label_list[0]); i++) {
-        label_list[i] = lv_label_create(lv_scr_act());
-        lv_obj_add_style(label_list[i], &ft_style, LV_STATE_DEFAULT);
-        lv_label_set_text(label_list[i], "2022年05月24日!");
-        lv_obj_set_size(label_list[i], 3000, 600);
-        lv_obj_set_pos(label_list[i], 0, i * 256);
-        lv_obj_remove_flag(label_list[i], LV_OBJ_FLAG_SCROLLABLE);
 
-        lv_anim_t a;
-        lv_anim_init(&a);
-        lv_anim_set_var(&a, label_list[i]);
-        lv_anim_set_values(&a, -1080, 1080);
-        lv_anim_set_duration(&a, 10 * 1000);
-        lv_anim_set_exec_cb(&a, anim_x_cb);
-        lv_anim_set_path_cb(&a, lv_anim_path_linear);
-        lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-        lv_anim_start(&a);
+    // for (int i = 0; i < 10; i++) {
+    //     test_rotate_label(screen, &ft_style, i * 10);
+    // }
+    // create_rotate_label(screen,  &ft_style);
+
+    for (int i = 0; i < sizeof(s_label_list) / sizeof(s_label_list[0]); i++) {
+        s_label_list[i] = lv_label_create(lv_scr_act());
+        lv_obj_add_style(s_label_list[i], &ft_style, LV_STATE_DEFAULT);
+        lv_label_set_text(s_label_list[i], "2022年05月24日!");
+        lv_obj_set_size(s_label_list[i], 3000, 600);
+        lv_obj_set_pos(s_label_list[i], 0, i * 256 + 600);
+        lv_obj_remove_flag(s_label_list[i], LV_OBJ_FLAG_SCROLLABLE);
     }
+
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, nullptr);
+    lv_anim_set_values(&a, -1080, 1080);
+    lv_anim_set_duration(&a, 10 * 1000);
+    lv_anim_set_exec_cb(&a, anim_x_cb);
+    lv_anim_set_path_cb(&a, lv_anim_path_linear);
+    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_start(&a);
 }
 
 #if LV_USE_LINUX_FBDEV
@@ -165,8 +163,6 @@ static void lv_linux_disp_init(void)
 
 int main(void)
 {
-    vzes::XProcUtil::set_affinity({3});
-
     lv_init();
 
     /*Linux display device init*/
