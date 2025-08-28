@@ -99,7 +99,7 @@ static uint32_t tick_get_cb(void);
 #define PHY_SCREEN_WIDTH 1920
 #define PHY_SCREEN_HEIGHT 1080
 
-#define LV_SCREEN_WIDTH 1088 // must align 16
+#define LV_SCREEN_WIDTH 1920 // must align 16
 #define LV_SCREEN_HEIGHT 1080
 
 #ifdef CHIP_PLATFORM_SSTAR_V2_0
@@ -221,7 +221,7 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
     struct fb_bitfield  s_r16 = {11, 5, 0};
     struct fb_bitfield  s_g16 = {5, 6, 0};
     struct fb_bitfield  s_b16 = {0, 5, 0};
-#elif defined(CHIP_PLATFORM_HISI_V6.0)
+#elif defined(CHIP_PLATFORM_HISI_V6_0)
     struct fb_bitfield  s_a16 = {12, 4, 0};
     struct fb_bitfield  s_r16 = {8, 4, 0};
     struct fb_bitfield  s_g16 = {4, 4, 0};
