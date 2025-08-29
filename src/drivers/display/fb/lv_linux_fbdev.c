@@ -20,6 +20,8 @@
 #include <sys/ioctl.h>
 #include <time.h>
 
+#include "gfbg.h"
+
 #if LV_LINUX_FBDEV_BSD
     #include <sys/fcntl.h>
     #include <sys/consio.h>
@@ -28,14 +30,17 @@
     #include <linux/fb.h>
 #endif /* LV_LINUX_FBDEV_BSD */
 
-#define DEBUG_TIME_COST 0
-
 #include "../../../display/lv_display_private.h"
 #include "../../../draw/sw/lv_draw_sw.h"
 
 /*********************
  *      DEFINES
  *********************/
+#define DEBUG_TIME_COST 0
+
+#if (LV_LINUX_FBDEV_RENDER_MODE == 2) // LV_DISPLAY_RENDER_MODE_FULL
+#define ENABLE_FB_DOUBLE_BUFFER
+#endif
 
 /**********************
  *      TYPEDEFS
@@ -70,6 +75,7 @@ typedef struct {
     size_t rotated_buf_size;
     long int screensize;
     int fbfd;
+    bool fb_sw;
     bool force_refresh;
 } lv_linux_fb_t;
 
@@ -99,7 +105,7 @@ static uint32_t tick_get_cb(void);
 #define PHY_SCREEN_WIDTH 1920
 #define PHY_SCREEN_HEIGHT 1080
 
-#define LV_SCREEN_WIDTH 1920 // must align 16
+#define LV_SCREEN_WIDTH 1088 // must align 16
 #define LV_SCREEN_HEIGHT 1080
 
 #ifdef CHIP_PLATFORM_SSTAR_V2_0
@@ -194,9 +200,16 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
 
     dsc->vinfo.xres = disp->hor_res;
     dsc->vinfo.yres = disp->ver_res;
+    dsc->vinfo.bits_per_pixel = LV_COLOR_DEPTH;
+
+#ifdef ENABLE_FB_DOUBLE_BUFFER
+    dsc->vinfo.xres_virtual = LV_SCREEN_WIDTH;
+    dsc->vinfo.yres_virtual = LV_SCREEN_HEIGHT * 2;
+#else
     dsc->vinfo.xres_virtual = LV_SCREEN_WIDTH;
     dsc->vinfo.yres_virtual = LV_SCREEN_HEIGHT;
-    dsc->vinfo.bits_per_pixel = LV_COLOR_DEPTH;
+#endif
+
 #if LV_COLOR_DEPTH == 32
     struct fb_bitfield  s_a32 = {24, 8, 0};
     struct fb_bitfield  s_r32 = {16, 8, 0};
@@ -265,7 +278,9 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
     LV_LOG_INFO("%dx%d, %dbpp", dsc->vinfo.xres, dsc->vinfo.yres, dsc->vinfo.bits_per_pixel);
 
     /* Figure out the size of the screen in bytes*/
-    dsc->screensize =  dsc->finfo.smem_len;/*finfo.line_length * vinfo.yres;*/
+    // dsc->screensize =  dsc->finfo.smem_len;
+    dsc->screensize =  dsc->finfo.line_length * dsc->vinfo.yres_virtual;
+    LV_LOG_ERROR("mem size: %d, %d", dsc->screensize, dsc->finfo.smem_len);
 
 #if LV_LINUX_FBDEV_MMAP
     /* Map the device to memory*/
@@ -417,6 +432,11 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * colo
     printf("rotate cost %lld, max: %lld us\n", e_pts - s_pts, max_rotate_cost);
 #endif
 
+#ifdef ENABLE_FB_DOUBLE_BUFFER
+    dsc->vinfo.yoffset = dsc->fb_sw ? dsc->vinfo.yres : 0;
+    dsc->fb_sw = !dsc->fb_sw;
+#endif
+
     /* Ensure that we're within the framebuffer's bounds */
     if(area->x2 < 0 || area->y2 < 0 || area->x1 > (int32_t)dsc->vinfo.xres - 1 || area->y1 > (int32_t)dsc->vinfo.yres - 1) {
         lv_display_flush_ready(disp);
@@ -467,6 +487,12 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * colo
             perror("Error setting var screen info");
         }
     }
+
+#ifdef ENABLE_FB_DOUBLE_BUFFER
+    if (ioctl(dsc->fbfd, FBIOPAN_DISPLAY, &dsc->vinfo) < 0) {
+        perror("Error FBIOPAN_DISPLAY");
+    }
+#endif
 
     lv_display_flush_ready(disp);
 }
