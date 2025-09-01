@@ -157,7 +157,14 @@ void lv_example_anim_1(void)
 static void lv_linux_disp_init(void)
 {
     const char *device = getenv_default("LV_LINUX_FBDEV_DEVICE", "/dev/fb0");
-    lv_display_t * disp = lv_linux_fbdev_create();
+    lv_disp_fb_info_t fb_info;
+    fb_info.screen_width = 1920;
+    fb_info.screen_height = 1080;
+    fb_info.fb_width = 1088; // must align 16
+    fb_info.fb_height = 1080;
+    fb_info.start_pos.x = fb_info.screen_width - fb_info.fb_width;
+    fb_info.start_pos.y = fb_info.screen_height - fb_info.fb_height;
+    lv_display_t * disp = lv_linux_fbdev_create(&fb_info);
     lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_90);
 
     lv_linux_fbdev_set_file(disp, device);
