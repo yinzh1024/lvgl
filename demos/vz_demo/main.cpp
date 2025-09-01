@@ -1,3 +1,5 @@
+#include <csignal>
+
 #include "lvgl/lvgl.h"
 #include "lvgl/demos/lv_demos.h"
 #include "src/display/lv_display_private.h"
@@ -12,6 +14,7 @@
 #define TEXT_FONT_SIZE 196
 
 lv_obj_t *s_label_list[4];
+lv_obj_t *s_pts_label;
 
 static const char *getenv_default(const char *name, const char *dflt)
 {
@@ -26,6 +29,12 @@ static void anim_x_cb(void * var, int32_t v)
         lv_label_set_text(s_label_list[i], text);
         lv_obj_set_x(s_label_list[i], v);
     }
+    uint64_t pts = 0L;
+    lv_get_cur_pts(&pts);
+    char pts_us[16];
+    snprintf(pts_us, sizeof(pts_us) - 1, "pts: %llu", pts / 1000);
+    lv_label_set_text(s_pts_label, pts_us);
+    lv_obj_set_pos(s_pts_label, 0, 0);
 }
 
 static void anim_y_cb(void * var, int32_t v)
@@ -112,6 +121,17 @@ void lv_example_anim_1(void)
     // }
     // create_rotate_label(screen,  &ft_style);
 
+    s_pts_label = lv_label_create(lv_scr_act());
+    lv_obj_add_style(s_pts_label, &ft_style, LV_STATE_DEFAULT);
+
+    uint64_t pts = 0L;
+    lv_get_cur_pts(&pts);
+    char pts_us[16];
+    snprintf(pts_us, sizeof(pts_us) - 1, "pts: %llu", pts);
+    lv_label_set_text(s_pts_label, pts_us);
+    lv_obj_set_pos(s_pts_label, 0, 0);
+    lv_obj_remove_flag(s_pts_label, LV_OBJ_FLAG_SCROLLABLE);
+
     for (int i = 0; i < sizeof(s_label_list) / sizeof(s_label_list[0]); i++) {
         s_label_list[i] = lv_label_create(lv_scr_act());
         lv_obj_add_style(s_label_list[i], &ft_style, LV_STATE_DEFAULT);
@@ -124,7 +144,8 @@ void lv_example_anim_1(void)
     lv_anim_t a;
     lv_anim_init(&a);
     lv_anim_set_var(&a, nullptr);
-    lv_anim_set_values(&a, -1080, 1080);
+    // lv_anim_set_values(&a, -1080, 1080);
+    lv_anim_set_values(&a, 1080, -1080);
     lv_anim_set_duration(&a, 10 * 1000);
     lv_anim_set_exec_cb(&a, anim_x_cb);
     lv_anim_set_path_cb(&a, lv_anim_path_linear);
@@ -161,6 +182,12 @@ static void lv_linux_disp_init(void)
 #error Unsupported configuration
 #endif
 
+static bool g_exit = false;
+
+static void handleSig(int signo) {
+    g_exit = true;
+}
+
 int main(void)
 {
     lv_init();
@@ -168,7 +195,11 @@ int main(void)
     /*Linux display device init*/
     lv_linux_disp_init();
 
-    // lv_obj_set_style_bg_color(lv_scr_act(), lv_color_make(0xFF, 0xFF, 0xFF), 0);
+    signal(SIGINT, handleSig);
+    signal(SIGTERM, handleSig);
+    signal(SIGKILL, handleSig);
+
+    lv_obj_set_style_bg_color(lv_scr_act(), lv_color_make(0x00, 0x00, 0x00), 0);
 
     /*Create a Demo*/
     // lv_demo_widgets();
@@ -178,10 +209,11 @@ int main(void)
 
     prctl(PR_SET_NAME, "LVGLMain");
     /*Handle LVGL tasks*/
-    while(1) {
+    while(!g_exit) {
         lv_timer_handler();
         usleep(5000);
     }
+    lv_deinit();
 
     return 0;
 }
