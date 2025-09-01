@@ -25,11 +25,20 @@ extern "C" {
 /**********************
  *      TYPEDEFS
  **********************/
+typedef struct {
+ uint32_t fb_width;
+ uint32_t fb_height;
+ uint32_t screen_width;
+ uint32_t screen_height;
+ lv_point_t start_pos;
+} lv_disp_fb_info_t;
 
 /**********************
  * GLOBAL PROTOTYPES
  **********************/
-lv_display_t * lv_linux_fbdev_create(void);
+lv_display_t * lv_linux_fbdev_create(lv_disp_fb_info_t *fb_info);
+
+void lv_linux_fbdev_destroy(lv_display_t *disp);
 
 void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file);
 

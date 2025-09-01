@@ -20,7 +20,9 @@
 #include <sys/ioctl.h>
 #include <time.h>
 
+#ifdef CHIP_PLATFORM_HISI_V6_0
 #include "gfbg.h"
+#endif
 
 #if LV_LINUX_FBDEV_BSD
     #include <sys/fcntl.h>
@@ -71,6 +73,7 @@ typedef struct {
 #if LV_LINUX_FBDEV_MMAP
     char * fbp;
 #endif
+    lv_disp_fb_info_t fb_info;
     uint8_t * rotated_buf;
     size_t rotated_buf_size;
     long int screensize;
@@ -102,12 +105,6 @@ static uint32_t tick_get_cb(void);
     #define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 #endif
 
-#define PHY_SCREEN_WIDTH 1920
-#define PHY_SCREEN_HEIGHT 1080
-
-#define LV_SCREEN_WIDTH 1088 // must align 16
-#define LV_SCREEN_HEIGHT 1080
-
 #ifdef CHIP_PLATFORM_SSTAR_V2_0
 
 #define FB_IOC_MAGIC 'F'
@@ -128,7 +125,7 @@ typedef struct MI_FB_Rectangle_s
  *   GLOBAL FUNCTIONS
  **********************/
 
-lv_display_t * lv_linux_fbdev_create(void)
+lv_display_t * lv_linux_fbdev_create(lv_disp_fb_info_t *fb_info)
 {
     lv_tick_set_cb(tick_get_cb);
 
@@ -136,16 +133,25 @@ lv_display_t * lv_linux_fbdev_create(void)
     LV_ASSERT_MALLOC(dsc);
     if(dsc == NULL) return NULL;
 
-    lv_display_t * disp = lv_display_create(LV_SCREEN_WIDTH, LV_SCREEN_HEIGHT);
+    lv_display_t * disp = lv_display_create(fb_info->fb_width, fb_info->fb_height);
     if(disp == NULL) {
         lv_free(dsc);
         return NULL;
     }
     dsc->fbfd = -1;
+    memcpy(&dsc->fb_info, fb_info, sizeof(dsc->fb_info));
     lv_display_set_driver_data(disp, dsc);
     lv_display_set_flush_cb(disp, flush_cb);
 
     return disp;
+}
+
+void lv_linux_fbdev_destroy(lv_display_t* disp) {
+    lv_linux_fb_t* dsc = lv_display_get_driver_data(disp);
+    if (dsc->fbp) {
+        munmap(dsc->fbp, dsc->screensize);
+        dsc->fbp = NULL;
+    }
 }
 
 void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
@@ -206,8 +212,8 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
     dsc->vinfo.xres_virtual = LV_SCREEN_WIDTH;
     dsc->vinfo.yres_virtual = LV_SCREEN_HEIGHT * 2;
 #else
-    dsc->vinfo.xres_virtual = LV_SCREEN_WIDTH;
-    dsc->vinfo.yres_virtual = LV_SCREEN_HEIGHT;
+    dsc->vinfo.xres_virtual = dsc->fb_info.fb_width;
+    dsc->vinfo.yres_virtual = dsc->fb_info.fb_height;
 #endif
 
 #if LV_COLOR_DEPTH == 32
@@ -266,12 +272,18 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
 
 #ifdef CHIP_PLATFORM_SSTAR_V2_0
     /* Set variable screen pos */
-    // MI_FB_Rectangle_t rect = {0, 0, LV_SCREEN_WIDTH, LV_SCREEN_HEIGHT};
-    MI_FB_Rectangle_t rect = {PHY_SCREEN_WIDTH - LV_SCREEN_WIDTH, PHY_SCREEN_HEIGHT - LV_SCREEN_HEIGHT, LV_SCREEN_WIDTH, LV_SCREEN_HEIGHT};
+    MI_FB_Rectangle_t rect = {
+        dsc->fb_info.start_pos.x,
+        dsc->fb_info.start_pos.y,
+        dsc->fb_info.fb_width,
+        dsc->fb_info.fb_height
+    };
     if(ioctl(dsc->fbfd, FBIOSET_SCREEN_LOCATION, &rect) == -1) {
         perror("Error FBIOSET_SCREEN_LOCATION");
         return;
     }
+#elif CHIP_PLATFORM_HISI_V6_0
+    // TODO:
 #endif
 #endif /* LV_LINUX_FBDEV_BSD */
 
