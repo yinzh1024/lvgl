@@ -2,6 +2,12 @@ cmake_minimum_required(VERSION 3.12.4)
 #########################################################################
 SET(BUILD_PROJECT_NAME lvgl_demo)
 
+#add_definitions(
+#  -fsanitize=leak
+#  -fno-omit-frame-pointer
+#  -static-libasan
+#)
+
 INCLUDE_DIRECTORIES(.)
 
 SET(DEMO_SRC
@@ -20,6 +26,7 @@ TARGET_LINK_LIBRARIES(${BUILD_PROJECT_NAME}
   ${VZ_DRV_LINK_LIB}
   -lfreetype
   -lpthread
+#  liblsan.a
 )
 
 INSTALL(TARGETS ${BUILD_PROJECT_NAME}

@@ -61,7 +61,7 @@ struct bsd_fb_fix_info {
 };
 
 typedef struct {
-    const char * devname;
+    char devname[16];
     lv_color_format_t color_format;
 #if LV_LINUX_FBDEV_BSD
     struct bsd_fb_var_info vinfo;
@@ -92,6 +92,8 @@ static uint32_t tick_get_cb(void);
 /**********************
  *  STATIC VARIABLES
  **********************/
+static uint8_t * draw_buf = NULL;
+static uint8_t * draw_buf_2 = NULL;
 
 /**********************
  *      MACROS
@@ -150,18 +152,28 @@ void lv_linux_fbdev_destroy(lv_display_t* disp) {
     lv_linux_fb_t* dsc = lv_display_get_driver_data(disp);
     if (dsc->fbp) {
         munmap(dsc->fbp, dsc->screensize);
+        close(dsc->fbfd);
         dsc->fbp = NULL;
+        dsc->fbfd = -1;
+        free(dsc->rotated_buf);
+        dsc->rotated_buf = NULL;
+        dsc->rotated_buf_size = 0;
+        lv_free(dsc);
+    }
+    if (draw_buf) {
+        lv_free(draw_buf);
+        draw_buf = NULL;
+    }
+    if (draw_buf_2) {
+        lv_free(draw_buf_2);
+        draw_buf_2 = NULL;
     }
 }
 
 void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
 {
-    char * devname = lv_strdup(file);
-    LV_ASSERT_MALLOC(devname);
-    if(devname == NULL) return;
-
     lv_linux_fb_t * dsc = lv_display_get_driver_data(disp);
-    dsc->devname = devname;
+    strncpy(dsc->devname, file, sizeof(dsc->devname) - 1);
 
     if(dsc->fbfd > 0) close(dsc->fbfd);
 
@@ -209,8 +221,8 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
     dsc->vinfo.bits_per_pixel = LV_COLOR_DEPTH;
 
 #ifdef ENABLE_FB_DOUBLE_BUFFER
-    dsc->vinfo.xres_virtual = LV_SCREEN_WIDTH;
-    dsc->vinfo.yres_virtual = LV_SCREEN_HEIGHT * 2;
+    dsc->vinfo.xres_virtual = dsc->fb_info.fb_width;
+    dsc->vinfo.yres_virtual = dsc->fb_info.fb_height * 2;
 #else
     dsc->vinfo.xres_virtual = dsc->fb_info.fb_width;
     dsc->vinfo.yres_virtual = dsc->fb_info.fb_height;
@@ -334,12 +346,10 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
         draw_buf_size *= ver_res;
     }
 
-    uint8_t * draw_buf = NULL;
-    uint8_t * draw_buf_2 = NULL;
-    draw_buf = malloc(draw_buf_size);
+    draw_buf = lv_malloc(draw_buf_size);
 
     if(LV_LINUX_FBDEV_BUFFER_COUNT == 2) {
-        draw_buf_2 = malloc(draw_buf_size);
+        draw_buf_2 = lv_malloc(draw_buf_size);
     }
 
     lv_display_set_resolution(disp, hor_res, ver_res);

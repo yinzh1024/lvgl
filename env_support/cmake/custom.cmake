@@ -67,6 +67,12 @@ file(GLOB_RECURSE THORVG_SOURCES ${LVGL_ROOT_DIR}/src/libs/thorvg/*.cpp
 
 add_definitions(-D_GNU_SOURCE)
 
+#add_definitions(
+#  -fsanitize=leak
+#  -fno-omit-frame-pointer
+#  -static-libasan
+#)
+
 # Build LVGL library
 add_library(lvgl ${SOURCES})
 add_library(lvgl::lvgl ALIAS lvgl)
@@ -74,6 +80,7 @@ add_library(lvgl::lvgl ALIAS lvgl)
 set(PLATFORM_LINK_LIBS
   ${PLATFORM_LINK_LIBS}
   -lturbojpeg
+#  liblsan.a
 )
 
 IF(CHIP_PLATFORM STREQUAL "sigmastar")
