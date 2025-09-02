@@ -39,7 +39,7 @@
  * - LV_STDLIB_RTTHREAD:    RT-Thread implementation
  * - LV_STDLIB_CUSTOM:      Implement the functions externally
  */
-#define LV_USE_STDLIB_MALLOC    LV_STDLIB_BUILTIN
+#define LV_USE_STDLIB_MALLOC    LV_STDLIB_CLIB
 
 /** Possible values
  * - LV_STDLIB_BUILTIN:     LVGL's built in implementation
@@ -48,7 +48,7 @@
  * - LV_STDLIB_RTTHREAD:    RT-Thread implementation
  * - LV_STDLIB_CUSTOM:      Implement the functions externally
  */
-#define LV_USE_STDLIB_STRING    LV_STDLIB_BUILTIN
+#define LV_USE_STDLIB_STRING    LV_STDLIB_CLIB
 
 /** Possible values
  * - LV_STDLIB_BUILTIN:     LVGL's built in implementation
@@ -57,7 +57,7 @@
  * - LV_STDLIB_RTTHREAD:    RT-Thread implementation
  * - LV_STDLIB_CUSTOM:      Implement the functions externally
  */
-#define LV_USE_STDLIB_SPRINTF   LV_STDLIB_BUILTIN
+#define LV_USE_STDLIB_SPRINTF   LV_STDLIB_CLIB
 
 #define LV_STDINT_INCLUDE       <stdint.h>
 #define LV_STDDEF_INCLUDE       <stddef.h>
@@ -396,15 +396,15 @@
     #define LV_LOG_USE_FILE_LINE 1
 
     /* Enable/disable LV_LOG_TRACE in modules that produces a huge number of logs. */
-    #define LV_LOG_TRACE_MEM        1   /**< Enable/disable trace logs in memory operations. */
-    #define LV_LOG_TRACE_TIMER      1   /**< Enable/disable trace logs in timer operations. */
-    #define LV_LOG_TRACE_INDEV      1   /**< Enable/disable trace logs in input device operations. */
-    #define LV_LOG_TRACE_DISP_REFR  1   /**< Enable/disable trace logs in display re-draw operations. */
-    #define LV_LOG_TRACE_EVENT      1   /**< Enable/disable trace logs in event dispatch logic. */
-    #define LV_LOG_TRACE_OBJ_CREATE 1   /**< Enable/disable trace logs in object creation (core `obj` creation plus every widget). */
-    #define LV_LOG_TRACE_LAYOUT     1   /**< Enable/disable trace logs in flex- and grid-layout operations. */
-    #define LV_LOG_TRACE_ANIM       1   /**< Enable/disable trace logs in animation logic. */
-    #define LV_LOG_TRACE_CACHE      1   /**< Enable/disable trace logs in cache operations. */
+    #define LV_LOG_TRACE_MEM        0   /**< Enable/disable trace logs in memory operations. */
+    #define LV_LOG_TRACE_TIMER      0   /**< Enable/disable trace logs in timer operations. */
+    #define LV_LOG_TRACE_INDEV      0   /**< Enable/disable trace logs in input device operations. */
+    #define LV_LOG_TRACE_DISP_REFR  0   /**< Enable/disable trace logs in display re-draw operations. */
+    #define LV_LOG_TRACE_EVENT      0   /**< Enable/disable trace logs in event dispatch logic. */
+    #define LV_LOG_TRACE_OBJ_CREATE 0   /**< Enable/disable trace logs in object creation (core `obj` creation plus every widget). */
+    #define LV_LOG_TRACE_LAYOUT     0   /**< Enable/disable trace logs in flex- and grid-layout operations. */
+    #define LV_LOG_TRACE_ANIM       0   /**< Enable/disable trace logs in animation logic. */
+    #define LV_LOG_TRACE_CACHE      0   /**< Enable/disable trace logs in cache operations. */
 #endif  /*LV_USE_LOG*/
 
 /*-------------
