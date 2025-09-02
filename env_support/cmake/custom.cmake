@@ -32,7 +32,7 @@ option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
 option(CONFIG_LV_BUILD_DEMOS "Build demos" OFF)
 option(CONFIG_LV_BUILD_EXAMPLES "Build examples" OFF)
-option(CONFIG_LV_USE_THORVG_INTERNAL "Use the internal version of ThorVG" ON)
+option(CONFIG_LV_USE_THORVG_INTERNAL "Use the internal version of ThorVG" OFF)
 option(CONFIG_LV_USE_PRIVATE_API "If set - install the private headers" OFF)
 
 ############################## BUILD ######################################
@@ -330,34 +330,34 @@ if("${INC_INSTALL_DIR}" STREQUAL "")
 endif()
 
 #Install public headers
-install(
-    DIRECTORY "${LVGL_ROOT_DIR}/src"
-    DESTINATION "${INC_INSTALL_DIR}"
-    FILES_MATCHING
-    PATTERN "*.h"
-    PATTERN "*_private.h" EXCLUDE)
-
-if (CONFIG_LV_USE_PRIVATE_API)
-    # Install private headers - only if required
-    install(
-        DIRECTORY "${LVGL_ROOT_DIR}/src"
-        DESTINATION "${INC_INSTALL_DIR}"
-        FILES_MATCHING
-        PATTERN "*_private.h")
-endif()
-
-
-if (LV_BUILD_USE_KCONFIG)
-    # When KConfig is used, copy the expanded conf header
-    # and rename it to lv_conf.h
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/lv_conf_expanded.h
-            DESTINATION ${INC_INSTALL_DIR}
-            RENAME lv_conf.h)
-endif()
-
-install(
-    FILES ${LVGL_PUBLIC_HEADERS}
-    DESTINATION "${INC_INSTALL_DIR}/")
+#install(
+#    DIRECTORY "${LVGL_ROOT_DIR}/src"
+#    DESTINATION "${INC_INSTALL_DIR}"
+#    FILES_MATCHING
+#    PATTERN "*.h"
+#    PATTERN "*_private.h" EXCLUDE)
+#
+#if (CONFIG_LV_USE_PRIVATE_API)
+#    # Install private headers - only if required
+#    install(
+#        DIRECTORY "${LVGL_ROOT_DIR}/src"
+#        DESTINATION "${INC_INSTALL_DIR}"
+#        FILES_MATCHING
+#        PATTERN "*_private.h")
+#endif()
+#
+#
+#if (LV_BUILD_USE_KCONFIG)
+#    # When KConfig is used, copy the expanded conf header
+#    # and rename it to lv_conf.h
+#    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/lv_conf_expanded.h
+#            DESTINATION ${INC_INSTALL_DIR}
+#            RENAME lv_conf.h)
+#endif()
+#
+#install(
+#    FILES ${LVGL_PUBLIC_HEADERS}
+#    DESTINATION "${INC_INSTALL_DIR}/")
 
 # Install library
 set_target_properties(
@@ -369,20 +369,20 @@ set_target_properties(
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/lib"
     PUBLIC_HEADER "${LVGL_PUBLIC_HEADERS}")
 
-install(
-    TARGETS lvgl
-    ARCHIVE DESTINATION "${LIB_INSTALL_DIR}"
-    LIBRARY DESTINATION "${LIB_INSTALL_DIR}"
-    RUNTIME DESTINATION "${RUNTIME_INSTALL_DIR}"
-    PUBLIC_HEADER DESTINATION "${INC_INSTALL_DIR}")
+#install(
+#    TARGETS lvgl
+#    ARCHIVE DESTINATION "${LIB_INSTALL_DIR}"
+#    LIBRARY DESTINATION "${LIB_INSTALL_DIR}"
+#    RUNTIME DESTINATION "${RUNTIME_INSTALL_DIR}"
+#    PUBLIC_HEADER DESTINATION "${INC_INSTALL_DIR}")
 
 # TODO: if LVGL is linked with something else eg Freetype, Pkgconfig file must contain -lfreetype2
 configure_file("${LVGL_ROOT_DIR}/lvgl.pc.in" ${CMAKE_CURRENT_BINARY_DIR}/lvgl.pc @ONLY)
 configure_file("${LVGL_ROOT_DIR}/lv_version.h.in" ${CMAKE_CURRENT_BINARY_DIR}/lv_version.h @ONLY)
 
-install(
-    FILES "${CMAKE_CURRENT_BINARY_DIR}/lvgl.pc"
-    DESTINATION "share/pkgconfig/")
+#install(
+#    FILES "${CMAKE_CURRENT_BINARY_DIR}/lvgl.pc"
+#    DESTINATION "share/pkgconfig/")
 
 # Install library thorvg
 if(CONFIG_LV_USE_THORVG_INTERNAL)
