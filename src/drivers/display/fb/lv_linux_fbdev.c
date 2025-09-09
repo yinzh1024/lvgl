@@ -112,6 +112,8 @@ static uint8_t * draw_buf_2 = NULL;
 #define FB_IOC_MAGIC 'F'
 #define FBIOGET_SCREEN_LOCATION _IOR(FB_IOC_MAGIC, 0x60, MI_FB_Rectangle_t)
 #define FBIOSET_SCREEN_LOCATION _IOW(FB_IOC_MAGIC, 0x61, MI_FB_Rectangle_t)
+#define FBIOGET_COLORKEY _IOR(FB_IOC_MAGIC, 0x66, MI_FB_ColorKey_t)
+#define FBIOSET_COLORKEY _IOW(FB_IOC_MAGIC, 0x67, MI_FB_ColorKey_t)
 
 typedef struct MI_FB_Rectangle_s
 {
@@ -121,6 +123,13 @@ typedef struct MI_FB_Rectangle_s
     uint16_t height;
 }MI_FB_Rectangle_t;
 
+typedef struct MI_FB_ColorKey_s
+{
+    uint8_t enable;
+    uint8_t red;
+    uint8_t green;
+    uint8_t blue;
+} MI_FB_ColorKey_t;
 #endif
 
 /**********************
@@ -283,6 +292,7 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
     }
 
 #ifdef CHIP_PLATFORM_SSTAR_V2_0
+#if 1
     /* Set variable screen pos */
     MI_FB_Rectangle_t rect = {
         dsc->fb_info.start_pos.x,
@@ -294,6 +304,19 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
         perror("Error FBIOSET_SCREEN_LOCATION");
         return;
     }
+#else
+    /* set color key for alpha */
+    MI_FB_ColorKey_t color_key = {
+        .enable = 1,
+        .red = 0x00,
+        .green = 0x00,
+        .blue = 0x00,
+    }; // 全黑时为透明
+    if(ioctl(dsc->fbfd, FBIOSET_COLORKEY, &color_key) == -1) {
+        perror("Error FBIOSET_SCREEN_LOCATION");
+        return;
+    }
+#endif
 #elif CHIP_PLATFORM_HISI_V6_0
     // TODO:
 #endif
@@ -510,11 +533,9 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * colo
         }
     }
 
-#ifdef ENABLE_FB_DOUBLE_BUFFER
     if (ioctl(dsc->fbfd, FBIOPAN_DISPLAY, &dsc->vinfo) < 0) {
         perror("Error FBIOPAN_DISPLAY");
     }
-#endif
 
     lv_display_flush_ready(disp);
 }
