@@ -103,11 +103,7 @@ void lv_example_anim_1(void)
 {
     lv_obj_t *img = lv_image_create(lv_screen_active());
     // lv_image_set_src(img, "A:/nfsroot/test.bmp");
-#ifdef CHIP_PLATFORM_HISI_V6_0
     lv_image_set_src(img, "A:/nfsroot/rgb-compose.jpg");
-#elif CHIP_PLATFORM_SSTAR_V2_0
-    lv_image_set_src(img, "A:/tmp/nfs/rgb-compose.jpg");
-#endif
     // lv_obj_center(img);
 
     lv_style_set_text_font(&s_ft_style, s_font);
@@ -137,7 +133,7 @@ void lv_example_anim_1(void)
         lv_obj_add_style(s_label_list[i], &s_ft_style, LV_STATE_DEFAULT);
         lv_label_set_text(s_label_list[i], "2022年05月24日!");
         lv_obj_set_size(s_label_list[i], 3000, 600);
-        lv_obj_set_pos(s_label_list[i], 0, i * 256 + 600);
+        lv_obj_set_pos(s_label_list[i], 0, i * 256);
         lv_obj_remove_flag(s_label_list[i], LV_OBJ_FLAG_SCROLLABLE);
     }
 
@@ -169,7 +165,7 @@ void run_demo(bool half_screen) {
     fb_info.screen_width = 1920;
     fb_info.screen_height = 1080;
     if (half_screen) {
-        fb_info.fb_width = 1088; // must align 16
+        fb_info.fb_width = LV_ALIGN_UP(1920 - 600, 16); // must align 16
         fb_info.fb_height = 1080;
     } else {
         fb_info.fb_width = 1920; // must align 16
@@ -188,7 +184,7 @@ void run_demo(bool half_screen) {
     signal(SIGKILL, handleSig);
 
     s_font = lv_tiny_ttf_create_file("A:/tmp/app/exec/font/DroidSans.ttf", TEXT_FONT_SIZE);
-    lv_obj_set_style_bg_color(lv_scr_act(), lv_color_make(0x00, 0x00, 0x00), 0);
+    lv_obj_set_style_bg_color(lv_scr_act(), lv_color_make(0xff, 0xff, 0xff), 0);
     lv_style_init(&s_ft_style);
 
     /*Create a Demo*/
@@ -219,9 +215,9 @@ int main(void)
     mallopt(M_TRIM_THRESHOLD, 64 * 1024);
     mallopt(M_MMAP_THRESHOLD, 128 * 1024);
     for (int cnt = 0; cnt < 5; cnt++) {
-        run_demo(true);
-        getchar();
         run_demo(false);
+        getchar();
+        run_demo(true);
         getchar();
     }
 #else
