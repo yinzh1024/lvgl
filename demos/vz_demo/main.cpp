@@ -103,7 +103,7 @@ void lv_example_anim_1(void)
 {
     lv_obj_t *img = lv_image_create(lv_screen_active());
     // lv_image_set_src(img, "A:/nfsroot/test.bmp");
-    lv_image_set_src(img, "A:/nfsroot/rgb-compose.jpg");
+    lv_image_set_src(img, "A:/home/admin/rgb-compose.jpg");
     // lv_obj_center(img);
 
     lv_style_set_text_font(&s_ft_style, s_font);
@@ -211,7 +211,7 @@ void run_demo(bool half_screen) {
 
 int main(void)
 {
-#if 1
+#if 0
     mallopt(M_TRIM_THRESHOLD, 64 * 1024);
     mallopt(M_MMAP_THRESHOLD, 128 * 1024);
     for (int cnt = 0; cnt < 5; cnt++) {
@@ -221,7 +221,7 @@ int main(void)
         getchar();
     }
 #else
-    run_demo(false);
+    run_demo(true);
     getchar();
 #endif
     return 0;
