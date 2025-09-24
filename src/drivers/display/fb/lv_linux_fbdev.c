@@ -7,7 +7,6 @@
  *      INCLUDES
  *********************/
 #include "lv_linux_fbdev.h"
-#include "src/misc/lv_utils.h"
 #if LV_USE_LINUX_FBDEV
 
 #include <stdlib.h>
@@ -20,10 +19,6 @@
 #include <sys/ioctl.h>
 #include <time.h>
 
-#ifdef CHIP_PLATFORM_HISI_V6_0
-#include "gfbg.h"
-#endif
-
 #if LV_LINUX_FBDEV_BSD
     #include <sys/fcntl.h>
     #include <sys/consio.h>
@@ -34,6 +29,7 @@
 
 #include "../../../display/lv_display_private.h"
 #include "../../../draw/sw/lv_draw_sw.h"
+#include "../../../misc/lv_utils.h"
 
 /*********************
  *      DEFINES
@@ -154,6 +150,8 @@ lv_display_t * lv_linux_fbdev_create(lv_disp_fb_info_t *fb_info)
     lv_display_set_driver_data(disp, dsc);
     lv_display_set_flush_cb(disp, flush_cb);
 
+    LV_LOG_INFO("size: [%d, %d], pos: [%d, %d]", fb_info->fb_width, fb_info->fb_height, fb_info->start_pos.x, fb_info->start_pos.y);
+
     return disp;
 }
 
@@ -256,16 +254,16 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
     dsc->vinfo.green = s_g24;
     dsc->vinfo.blue = s_b24;
 #elif LV_COLOR_DEPTH == 16
-#ifdef CHIP_PLATFORM_SSTAR_V2_0
-    struct fb_bitfield  s_a16 = {0, 0, 0};
-    struct fb_bitfield  s_r16 = {11, 5, 0};
-    struct fb_bitfield  s_g16 = {5, 6, 0};
-    struct fb_bitfield  s_b16 = {0, 5, 0};
-#elif defined(CHIP_PLATFORM_HISI_V6_0)
+#ifdef CHIP_PLATFORM_HISI_V6_0
     struct fb_bitfield  s_a16 = {12, 4, 0};
     struct fb_bitfield  s_r16 = {8, 4, 0};
     struct fb_bitfield  s_g16 = {4, 4, 0};
     struct fb_bitfield  s_b16 = {0, 4, 0};
+#else
+    struct fb_bitfield  s_a16 = {0, 0, 0};
+    struct fb_bitfield  s_r16 = {11, 5, 0};
+    struct fb_bitfield  s_g16 = {5, 6, 0};
+    struct fb_bitfield  s_b16 = {0, 5, 0};
 #endif
     dsc->vinfo.transp = s_a16;
     dsc->vinfo.red = s_r16;
@@ -327,7 +325,7 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
     /* Figure out the size of the screen in bytes*/
     // dsc->screensize =  dsc->finfo.smem_len;
     dsc->screensize =  dsc->finfo.line_length * dsc->vinfo.yres_virtual;
-    LV_LOG_ERROR("mem size: %d, %d", dsc->screensize, dsc->finfo.smem_len);
+    LV_LOG_INFO("mem size: %ld, %d", dsc->screensize, dsc->finfo.smem_len);
 
 #if LV_LINUX_FBDEV_MMAP
     /* Map the device to memory*/
@@ -370,6 +368,7 @@ void lv_linux_fbdev_set_file(lv_display_t * disp, const char * file)
     }
 
     draw_buf = lv_malloc(draw_buf_size);
+    LV_LOG_WARN("malloc: %p, size: %d", draw_buf, draw_buf_size);
 
     if(LV_LINUX_FBDEV_BUFFER_COUNT == 2) {
         draw_buf_2 = lv_malloc(draw_buf_size);

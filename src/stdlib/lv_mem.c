@@ -159,7 +159,7 @@ void * lv_realloc(void * data_p, size_t new_size)
     void * new_p = lv_realloc_core(data_p, new_size);
 
     if(new_p == NULL) {
-        LV_LOG_ERROR("couldn't reallocate memory %d", new_size);
+        LV_LOG_ERROR("couldn't reallocate memory %ld", new_size);
         return NULL;
     }
 

@@ -90,6 +90,7 @@ lv_result_t lv_draw_buf_save_to_file(const lv_draw_buf_t * draw_buf, const char 
     return LV_RESULT_OK;
 }
 
+#include <time.h>
 lv_result_t lv_get_cur_pts(uint64_t *pts) {
     struct timespec tp;
     if (clock_gettime(CLOCK_MONOTONIC, &tp) != 0) {

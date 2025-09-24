@@ -277,7 +277,9 @@ LV_ATTRIBUTE_EXTERN_DATA extern lv_global_t lv_global;
  * Get the default global object for current thread
  * @return  pointer to the default global object
  */
+#ifndef LV_GLOBAL_CUSTOM
 lv_global_t * lv_global_default(void);
+#endif
 #endif
 #ifdef __cplusplus
 } /*extern "C"*/
